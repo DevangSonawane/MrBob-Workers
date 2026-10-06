@@ -1,20 +1,24 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
-import 'otp_signup_page.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
+import '../../../../features/onboarding/data/onboarding_repository.dart';
+import 'onboarding_otp_page.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class OnboardingPhonePage extends StatefulWidget {
+  const OnboardingPhonePage({super.key});
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  State<OnboardingPhonePage> createState() => _OnboardingPhonePageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _OnboardingPhonePageState extends State<OnboardingPhonePage> {
   final _phoneController = TextEditingController();
+  bool _loading = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -22,25 +26,46 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  /// Demo: no backend OTP request — any phone number
-  /// passes, so hand it straight to the signup flow.
-  void _openPhoneLogin() {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
+  Future<void> _requestOtp() async {
+    final raw = _phoneController.text.trim();
+    if (raw.isEmpty || raw.length != 10) {
+      setState(() => _error = 'Enter a valid 10-digit mobile number');
       AppHaptics.press();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your mobile number')),
-      );
       return;
     }
 
-    AppHaptics.confirm();
-    if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => OtpSignupPage(phone: '+91$phone')),
-    );
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final repo = OnboardingRepository.instance;
+      final phone = '+91$raw';
+      await repo.requestOtp(phone);
+      if (!mounted) return;
+      AppHaptics.success();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OnboardingOtpPage(phone: phone),
+        ),
+      );
+    } on DioException catch (e) {
+      final message = e.response?.data?['message'] as String? ??
+          'Could not send OTP. Please try again.';
+      if (!mounted) return;
+      setState(() => _error = message);
+      AppHaptics.press();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Network error. Please try again.');
+      AppHaptics.press();
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
   }
 
   @override
@@ -66,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
                 right: 0,
                 bottom: 222 + bottomInset,
                 child: Image.asset(
-                  'assets/login/loginpage.png',
+                  'assets/login/MrBob Rural Orders Onboarding.png',
                   fit: BoxFit.cover,
                   alignment: Alignment.bottomCenter,
                 ),
@@ -96,25 +121,15 @@ class _LoginPageState extends State<LoginPage> {
                 child: _LoginSheet(
                   bottomInset: bottomInset,
                   phoneController: _phoneController,
-                  onContinue: _openPhoneLogin,
-                  onGoogle: () => _enterSignup(context),
-                  onApple: () => _enterSignup(context),
+                  onContinue: _requestOtp,
+                  loading: _loading,
+                  error: _error,
                 ),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  // Demo: no social-login backend — Google/Apple skip
-  // straight into the signup flow.
-  static void _enterSignup(BuildContext context) {
-    AppHaptics.confirm();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const OtpSignupPage()),
     );
   }
 }
@@ -124,15 +139,15 @@ class _LoginSheet extends StatelessWidget {
     required this.bottomInset,
     required this.phoneController,
     required this.onContinue,
-    required this.onGoogle,
-    required this.onApple,
+    required this.loading,
+    required this.error,
   });
 
   final double bottomInset;
   final TextEditingController phoneController;
   final VoidCallback onContinue;
-  final VoidCallback onGoogle;
-  final VoidCallback onApple;
+  final bool loading;
+  final String? error;
 
   @override
   Widget build(BuildContext context) {
@@ -188,11 +203,23 @@ class _LoginSheet extends StatelessWidget {
                   );
                 },
               ),
+              if (error != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
               SizedBox(
                 height: 43,
                 child: FilledButton(
-                  onPressed: onContinue,
+                  onPressed: loading ? null : onContinue,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.brandForest,
                     foregroundColor: Colors.white,
@@ -201,41 +228,23 @@ class _LoginSheet extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _SocialButton(
-                      onPressed: onGoogle,
-                      child: SvgPicture.asset(
-                        'assets/icons/google.svg',
-                        width: 21,
-                        height: 21,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _SocialButton(
-                      onPressed: onApple,
-                      child: SvgPicture.asset(
-                        'assets/icons/apple.svg',
-                        width: 23,
-                        height: 23,
-                        colorFilter: const ColorFilter.mode(
-                          Colors.black,
-                          BlendMode.srcIn,
+                  child: loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Continue',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
               const SizedBox(height: 17),
               Text(
@@ -302,7 +311,6 @@ class _IndiaFlag extends StatelessWidget {
         'assets/icons/india_flag.svg',
         width: compact ? 24 : 27,
         height: compact ? 16 : 18,
-        fit: BoxFit.cover,
       ),
     );
   }
@@ -376,31 +384,6 @@ class _PhoneNumberField extends StatelessWidget {
           ),
           SizedBox(width: compact ? 6 : 9),
         ],
-      ),
-    );
-  }
-}
-
-class _SocialButton extends StatelessWidget {
-  const _SocialButton({required this.onPressed, required this.child});
-
-  final VoidCallback onPressed;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFF3F4F7),
-          foregroundColor: AppColors.brandForest,
-          elevation: 0,
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-        ),
-        child: child,
       ),
     );
   }

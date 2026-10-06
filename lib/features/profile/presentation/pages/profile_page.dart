@@ -6,6 +6,7 @@ import '../../../../core/models/kyc_document.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
+import '../../../../features/onboarding/data/onboarding_repository.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../skills/presentation/pages/skills_select_page.dart';
 
@@ -388,9 +389,11 @@ class _DocumentsCard extends StatelessWidget {
 class _SignOut extends StatelessWidget {
   const _SignOut();
 
-  void _signOut(BuildContext context) {
+  Future<void> _signOut(BuildContext context) async {
     AppHaptics.confirm();
     AppState.instance.signOut();
+    await OnboardingRepository.instance.clearTokens();
+    if (!context.mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const LoginPage()),
