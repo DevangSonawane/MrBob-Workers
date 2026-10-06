@@ -22,8 +22,6 @@ class OtpSignupPage extends StatefulWidget {
 }
 
 class _OtpSignupPageState extends State<OtpSignupPage> {
-  static const _locationAccent = AppColors.brandForest;
-
   final _pageController = PageController();
   final _otpController = TextEditingController();
   final _nameController = TextEditingController();
@@ -64,33 +62,29 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
 
   String get _buttonLabel => 'Next';
 
+  int get _currentPage {
+    if (!_pageController.hasClients) return _step;
+    return (_pageController.page ?? _step.toDouble()).round().clamp(0, 1);
+  }
+
   void _next() {
-    if (_step == 0) {
-      final otp = _otpController.text.trim();
-      if (otp.length != 4) {
-        AppHaptics.press();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter the 4-digit code')),
-        );
-        return;
-      }
-      AppHaptics.confirm();
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutCubic,
-      );
-      return;
-    }
-    if (_step == 1) {
-      AppHaptics.confirm();
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 520),
-        curve: Curves.easeOutCubic,
-      );
+    final currentStep = _currentPage;
+    if (currentStep < 1) {
+      _goToStep(currentStep + 1);
       return;
     }
     _completeSignup();
+  }
+
+  void _goToStep(int step) {
+    AppHaptics.confirm();
+    if (step == 1) FocusScope.of(context).unfocus();
+    setState(() => _step = step);
+    _pageController.animateToPage(
+      step,
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   /// Step 3: demo signup complete — persist the profile
@@ -124,7 +118,10 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
       return;
     }
     AppHaptics.tick();
-    _pageController.previousPage(
+    final previousStep = (_currentPage - 1).clamp(0, 1);
+    setState(() => _step = previousStep);
+    _pageController.animateToPage(
+      previousStep,
       duration: const Duration(milliseconds: 420),
       curve: Curves.easeOutCubic,
     );
@@ -145,17 +142,16 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
             children: [
               Column(
                 children: [
-                  if (_step != 2)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 6),
-                      child: Row(
-                        children: [
-                          _BackButton(onTap: _back),
-                          const Spacer(),
-                          const SizedBox(width: 44),
-                        ],
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 8, 18, 6),
+                    child: Row(
+                      children: [
+                        _BackButton(onTap: _back),
+                        const Spacer(),
+                        const SizedBox(width: 44),
+                      ],
                     ),
+                  ),
                   Expanded(
                     child: PageView(
                       controller: _pageController,
@@ -166,8 +162,6 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
                           if (!mounted) return;
                           if (value == 0) {
                             _otpFocusNode.requestFocus();
-                          } else if (value == 1) {
-                            _nameFocusNode.requestFocus();
                           } else {
                             FocusScope.of(context).unfocus();
                           }
@@ -176,8 +170,7 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
                       children: [
                         _FlowStep(
                           title: 'Verify your phone number',
-                          subtitle:
-                              'Enter the verification code sent to your phone number.',
+                          subtitle: 'Enter the verification code sent to your phone number.',
                           child: OtpBoxes(
                             focusNode: _otpFocusNode,
                             controller: _otpController,
@@ -186,8 +179,7 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
                         ),
                         _FlowStep(
                           title: 'What is your name?',
-                          subtitle:
-                              'Pros and support will use this for your bookings.',
+                          subtitle: 'Pros and support will use this for your bookings.',
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -206,33 +198,24 @@ class _OtpSignupPageState extends State<OtpSignupPage> {
                             ],
                           ),
                         ),
-                        _AddressStep(
-                          accentColor: _locationAccent,
-                          onBack: _back,
-                          onConfirm: _next,
-                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              if (_step != 2)
-                Positioned(
-                  left: 22,
-                  right: 22,
-                  bottom: 0,
-                  child: AnimatedPadding(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    padding: EdgeInsets.only(
-                      bottom: keyboardInset + 14 + bottomInset * 0.3,
-                    ),
-                    child: _NextButton(
-                      label: _buttonLabel,
-                      onTap: _next,
-                    ),
+              Positioned(
+                left: 22,
+                right: 22,
+                bottom: 0,
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.only(
+                    bottom: keyboardInset + 14 + bottomInset * 0.3,
                   ),
+                  child: _NextButton(label: _buttonLabel, onTap: _next),
                 ),
+              ),
             ],
           ),
         ),
@@ -796,11 +779,9 @@ class _LocationMap extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        OsmTileBackground(offset: offset),
+        OsmTileBackground(offset: offset, useNetworkTiles: false),
         Positioned.fill(
-          child: Center(
-            child: _SelectedLocationPin(accentColor: accentColor),
-          ),
+          child: Center(child: _SelectedLocationPin(accentColor: accentColor)),
         ),
       ],
     );

@@ -83,14 +83,6 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
     return null;
   }
 
-  bool get _allValid {
-    if (_numberController.text.trim().isEmpty) return false;
-    if (_numberError != null) return false;
-    if (_nameController.text.trim().isEmpty) return false;
-    if (_dobController.text.trim().isEmpty) return false;
-    return true;
-  }
-
   // ------------------------------------------------------------------
   // Actions
   // ------------------------------------------------------------------
@@ -144,10 +136,12 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
     // Simulated OCR: ~2s, then auto-fill from the mock extraction.
     Timer(const Duration(seconds: 2), () {
       if (!mounted || _type != type) return;
-      final mock =
-          type == KycDocType.aadhar ? MockExtraction.aadhar : MockExtraction.pan;
-      _numberController.text =
-          type == KycDocType.aadhar ? _groupDigits(mock.number, 4) : mock.number;
+      final mock = type == KycDocType.aadhar
+          ? MockExtraction.aadhar
+          : MockExtraction.pan;
+      _numberController.text = type == KycDocType.aadhar
+          ? _groupDigits(mock.number, 4)
+          : mock.number;
       _nameController.text = mock.holderName;
       _dobController.text = mock.dob;
       setState(() {
@@ -209,7 +203,18 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
                     child: Row(
                       children: [
                         _BackButton(onTap: _back),
-                        const Spacer(),
+                        Expanded(
+                          child: Text(
+                            'Verify your identity',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.brandForest,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 44),
                       ],
                     ),
@@ -218,53 +223,29 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
                     child: SingleChildScrollView(
                       keyboardDismissBehavior:
                           ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: const EdgeInsets.fromLTRB(26, 20, 26, 24),
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        18,
+                        20,
+                        keyboardInset + bottomInset + 110,
+                      ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Text(
-                            'Verify your identity',
-                            style: TextStyle(
-                              color: AppColors.brandForest,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              height: 1.12,
-                            ),
+                          _DocTypePill(
+                            selected: _type,
+                            onChanged: _selectType,
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Required before you can receive bookings',
-                            style: TextStyle(
-                              color: Color(0xFFB8B8B8),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              height: 1.22,
-                            ),
-                          ),
-                          const SizedBox(height: 26),
-                          Row(
-                            children: [
-                              _DocTypeCard(
-                                type: KycDocType.aadhar,
-                                selected: isAadhar,
-                                onTap: () => _selectType(KycDocType.aadhar),
-                              ),
-                              const SizedBox(width: 10),
-                              _DocTypeCard(
-                                type: KycDocType.pan,
-                                selected: !isAadhar,
-                                onTap: () => _selectType(KycDocType.pan),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 18),
+                          const SizedBox(height: 16),
                           if (_extracting)
                             const _ExtractingIndicator()
                           else if (_extracted)
                             const _ExtractedChip()
                           else
                             _ScanButton(onTap: _scanCard),
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 20),
+                          const _OrDivider(),
+                          const SizedBox(height: 18),
                           _Field(
                             label: isAadhar ? 'Aadhar number' : 'PAN number',
                             controller: _numberController,
@@ -288,7 +269,7 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
                                     const _UpperCaseAlphanumericFormatter(),
                                   ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           _Field(
                             label: 'Holder name',
                             controller: _nameController,
@@ -296,7 +277,7 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
                             hint: 'Name as printed on the card',
                             textCapitalization: TextCapitalization.words,
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 14),
                           _Field(
                             label: 'Date of birth',
                             controller: _dobController,
@@ -328,7 +309,6 @@ class _KycDocumentPageState extends State<KycDocumentPage> {
                   child: PrimaryButton(
                     label: 'Verify & continue',
                     onTap: _submit,
-                    enabled: _allValid,
                   ),
                 ),
               ),
@@ -363,8 +343,66 @@ class _BackButton extends StatelessWidget {
   }
 }
 
-class _DocTypeCard extends StatelessWidget {
-  const _DocTypeCard({
+class _DocTypePill extends StatelessWidget {
+  const _DocTypePill({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final KycDocType selected;
+  final ValueChanged<KycDocType> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Stack(
+          children: [
+            AnimatedAlign(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              alignment: selected == KycDocType.aadhar
+                  ? Alignment.centerLeft
+                  : Alignment.centerRight,
+              child: Container(
+                width: MediaQuery.of(context).size.width / 2 - 24,
+                height: 44,
+                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.brandForest,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _PillOption(
+                  type: KycDocType.aadhar,
+                  selected: selected == KycDocType.aadhar,
+                  onTap: () => onChanged(KycDocType.aadhar),
+                ),
+                _PillOption(
+                  type: KycDocType.pan,
+                  selected: selected == KycDocType.pan,
+                  onTap: () => onChanged(KycDocType.pan),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PillOption extends StatelessWidget {
+  const _PillOption({
     required this.type,
     required this.selected,
     required this.onTap,
@@ -376,64 +414,81 @@ class _DocTypeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isAadhar = type == KycDocType.aadhar;
+    final label = type == KycDocType.aadhar ? 'Aadhar' : 'PAN';
     return Expanded(
-      child: Semantics(
-        button: true,
-        selected: selected,
-        child: GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.brandForest.withValues(alpha: 0.06)
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(AppColors.radiusCard),
-              border: Border.all(
-                color: selected ? AppColors.brandForest : AppColors.borderSubtle,
-                width: selected ? 1.6 : 1,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(scale: animation, child: child),
+          );
+        },
+        child: Semantics(
+          key: ValueKey<String>('$type-${selected ? "on" : "off"}'),
+          button: true,
+          selected: selected,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              key: ValueKey<bool>(selected),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? Colors.white : const Color(0xFF525252),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  isAadhar ? LucideIcons.idCard : LucideIcons.creditCard,
-                  size: 26,
-                  color: selected ? AppColors.brandForest : AppColors.mutedText,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  isAadhar ? 'Aadhar Card' : 'PAN Card',
-                  style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  isAadhar ? '12-digit number' : '10-char alphanumeric',
-                  style: const TextStyle(
-                    color: AppColors.mutedText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 1,
+            color: const Color(0xFFE5E5E5),
+          ),
+        ),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              color: Color(0xFF9E9E9E),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: const Color(0xFFE5E5E5),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -451,24 +506,35 @@ class _ScanButton extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          height: 52,
+          height: 56,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.brandForest,
             borderRadius: BorderRadius.circular(AppColors.radiusCard),
-            border: Border.all(color: AppColors.brandForest, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brandForest.withValues(alpha: 0.18),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           alignment: Alignment.center,
-          child: const Row(
+          child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(LucideIcons.scanLine, size: 20, color: AppColors.brandForest),
-              SizedBox(width: 8),
+            children: const [
+              Icon(
+                LucideIcons.scanLine,
+                size: 21,
+                color: Colors.white,
+              ),
+              SizedBox(width: 10),
               Text(
                 'Scan card',
                 style: TextStyle(
-                  color: AppColors.brandForest,
+                  color: Colors.white,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
+                  height: 1.2,
                 ),
               ),
             ],
@@ -485,11 +551,15 @@ class _ExtractingIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: BoxDecoration(
         color: AppColors.surfaceTint,
         borderRadius: BorderRadius.circular(AppColors.radiusCard),
+        border: Border.all(
+          color: AppColors.brandGold.withValues(alpha: 0.30),
+          width: 1,
+        ),
       ),
       child: const Row(
         children: [
@@ -501,13 +571,13 @@ class _ExtractingIndicator extends StatelessWidget {
               color: AppColors.brandForest,
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 14),
           Text(
             'Extracting details…',
             style: TextStyle(
               color: AppColors.brandForest,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -522,17 +592,21 @@ class _ExtractedChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: const Color(0xFFE7F2E8),
         borderRadius: BorderRadius.circular(AppColors.radiusPill),
+        border: Border.all(
+          color: const Color(0xFF2E7D32).withValues(alpha: 0.25),
+          width: 1,
+        ),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(LucideIcons.checkCircle, size: 16, color: Color(0xFF2E7D32)),
-          SizedBox(width: 6),
+          Icon(LucideIcons.checkCircle, size: 17, color: Color(0xFF2E7D32)),
+          SizedBox(width: 8),
           Text(
             'Details extracted',
             style: TextStyle(
@@ -587,7 +661,8 @@ class _FieldState extends State<_Field> {
     super.dispose();
   }
 
-  void _onFocusChanged() => setState(() => _focused = widget.focusNode.hasFocus);
+  void _onFocusChanged() =>
+      setState(() => _focused = widget.focusNode.hasFocus);
 
   @override
   Widget build(BuildContext context) {
@@ -694,7 +769,10 @@ class _UpperCaseAlphanumericFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final text = newValue.text.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final text = newValue.text.toUpperCase().replaceAll(
+      RegExp(r'[^A-Z0-9]'),
+      '',
+    );
     return TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(offset: text.length),

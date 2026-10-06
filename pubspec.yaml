@@ -13,8 +13,6 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.3.0
   lucide_icons_flutter: ^3.1.20
-  liquid_glass_widgets:
-    path: vendor/liquid_glass_widgets
   image_picker: ^1.1.2
   url_launcher: ^6.3.0
 

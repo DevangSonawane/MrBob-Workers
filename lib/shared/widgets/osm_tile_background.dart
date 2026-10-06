@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 
 /// Hand-rolled OSM tile background (no google_maps dependency).
 ///
-/// Web-mercator tile math, `Image.network` tiles from
-/// tile.openstreetmap.org, a drag [offset], and a
-/// `CustomPainter` fallback when tiles fail to load (offline).
+/// Web-mercator tile math with a lightweight `CustomPainter` map by default.
+/// Live OSM network tiles are opt-in because loading a tile grid during route
+/// transitions can overwhelm some Android devices.
 /// Extracted from the client app's `email_login_page.dart`
 /// and parameterized by center coordinates.
 class OsmTileBackground extends StatelessWidget {
@@ -16,12 +16,14 @@ class OsmTileBackground extends StatelessWidget {
     this.latitude = 19.2836,
     this.longitude = 72.8727,
     this.zoom = 16,
+    this.useNetworkTiles = false,
   });
 
   final Offset offset;
   final double latitude;
   final double longitude;
   final int zoom;
+  final bool useNetworkTiles;
 
   double _longToTileX(double longitude, int zoom) {
     return (longitude + 180) / 360 * math.pow(2, zoom);
@@ -43,12 +45,35 @@ class OsmTileBackground extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (!useNetworkTiles) {
+          return ColoredBox(
+            color: const Color(0xFFF1F0F1),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: Transform.translate(
+                    offset: offset,
+                    child: const CustomPaint(painter: _MapPreviewPainter()),
+                  ),
+                ),
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
         final tileSize = math.max(
           constraints.maxWidth / 3.2,
           constraints.maxHeight / 5.4,
         );
         final offsetX =
-            constraints.maxWidth / 2 - (centerX - originX) * tileSize + offset.dx;
+            constraints.maxWidth / 2 -
+            (centerX - originX) * tileSize +
+            offset.dx;
         final offsetY =
             constraints.maxHeight * 0.46 -
             (centerY - originY) * tileSize +
@@ -251,11 +276,7 @@ class _PinPainter extends CustomPainter {
         ..style = PaintingStyle.fill,
     );
 
-    canvas.drawCircle(
-      center,
-      radius * 0.42,
-      Paint()..color = Colors.white,
-    );
+    canvas.drawCircle(center, radius * 0.42, Paint()..color = Colors.white);
   }
 
   @override

@@ -28,19 +28,26 @@ class _OtpBoxesState extends State<OtpBoxes> {
   void initState() {
     super.initState();
     widget.controller.addListener(_handleChanged);
+    widget.focusNode.addListener(_handleFocusChanged);
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_handleChanged);
+    widget.focusNode.removeListener(_handleFocusChanged);
     super.dispose();
   }
 
   void _handleChanged() {
+    if (!mounted) return;
     setState(() {});
     if (widget.controller.text.length == 4) {
       FocusScope.of(context).unfocus();
     }
+  }
+
+  void _handleFocusChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -70,7 +77,6 @@ class _OtpBoxesState extends State<OtpBoxes> {
               child: TextField(
                 focusNode: widget.focusNode,
                 controller: widget.controller,
-                autofocus: true,
                 keyboardType: TextInputType.number,
                 textInputAction: TextInputAction.done,
                 inputFormatters: [

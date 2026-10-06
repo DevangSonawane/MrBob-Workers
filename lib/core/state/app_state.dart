@@ -25,6 +25,11 @@ class AppState {
 
   final ValueNotifier<JobSession?> activeJob = ValueNotifier<JobSession?>(null);
 
+  /// Worker availability — drives the Home online toggle.
+  /// When offline, the feed shows a paused state and no new
+  /// bookings are injected.
+  final ValueNotifier<bool> isOnline = ValueNotifier<bool>(true);
+
   /// Bookings still swipable in the feed.
   List<GigBooking> get pendingBookings => bookings.value
       .where((booking) => booking.status == GigBookingStatus.incoming)
@@ -126,6 +131,13 @@ class AppState {
     activeJob.value = null;
   }
 
+  /// Called when leaving the completion screen: the finished job
+  /// stays in history/earnings, but it is no longer active, so Home
+  /// and Jobs stop offering a "view details" continuation for it.
+  void clearFinishedJob() {
+    activeJob.value = null;
+  }
+
   // ------------------------------------------------------------------
   // Demo simulation (§8)
   // ------------------------------------------------------------------
@@ -133,6 +145,7 @@ class AppState {
   /// Inject a fresh booking into the feed. Caps at 3 pending.
   /// Returns the new booking, or null when the cap is hit.
   GigBooking? injectNewBooking() {
+    if (!isOnline.value) return null;
     if (pendingBookings.length >= 3) return null;
     final booking = generateMockBooking(
       bookings.value.length + 100 + DateTime.now().millisecondsSinceEpoch % 997,

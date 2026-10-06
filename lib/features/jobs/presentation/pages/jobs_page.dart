@@ -44,7 +44,8 @@ class JobsPage extends StatelessWidget {
                   children: [
                     const _Header(),
                     const SizedBox(height: 24),
-                    if (activeJob != null) ...[
+                    if (activeJob != null &&
+                        activeJob.phase != JobPhase.completed) ...[
                       _ActiveJobCard(session: activeJob),
                       const SizedBox(height: 28),
                     ],
@@ -308,9 +309,9 @@ class _HistoryRow extends StatelessWidget {
 
   final GigBooking booking;
 
-  /// Completed and still-active jobs open the booking detail.
-  bool get _canOpen =>
-      booking.status == GigBookingStatus.completed || booking.status.isActive;
+  /// Still-active jobs open the booking detail. Completed ones don't —
+  /// they're finished, so there's nothing to continue or view.
+  bool get _canOpen => booking.status.isActive;
 
   @override
   Widget build(BuildContext context) {

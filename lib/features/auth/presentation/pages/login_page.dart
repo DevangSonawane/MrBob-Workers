@@ -26,20 +26,14 @@ class _LoginPageState extends State<LoginPage> {
   /// passes, so hand it straight to the signup flow.
   void _openPhoneLogin() {
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      AppHaptics.press();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your mobile number')),
-      );
-      return;
-    }
 
     AppHaptics.confirm();
     if (!mounted) return;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => OtpSignupPage(phone: '+91$phone')),
+      MaterialPageRoute(
+        builder: (_) => OtpSignupPage(phone: phone.isEmpty ? '' : '+91$phone'),
+      ),
     );
   }
 
@@ -66,7 +60,7 @@ class _LoginPageState extends State<LoginPage> {
                 right: 0,
                 bottom: 222 + bottomInset,
                 child: Image.asset(
-                  'assets/login/loginpage.png',
+                  'assets/login/MrBob Rural Orders Onboarding.png',
                   fit: BoxFit.cover,
                   alignment: Alignment.bottomCenter,
                 ),
