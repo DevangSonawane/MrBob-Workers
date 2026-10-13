@@ -139,8 +139,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
       }
     } on DioException catch (e) {
       if (!mounted) return;
-      setState(() =>
-          _error = e.response?.data?['message'] as String? ?? 'Load failed');
+      setState(
+        () => _error = e.response?.data?['message'] as String? ?? 'Load failed',
+      );
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Network error');
@@ -266,10 +267,12 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
       landmark: _landmarkController.text.trim().isEmpty
           ? null
           : _landmarkController.text.trim(),
-      emergencyContactName:
-          _emgNameController.text.trim().isEmpty ? null : _emgNameController.text.trim(),
-      emergencyContactPhone:
-          _emgPhoneController.text.trim().isEmpty ? null : _emgPhoneController.text.trim(),
+      emergencyContactName: _emgNameController.text.trim().isEmpty
+          ? null
+          : _emgNameController.text.trim(),
+      emergencyContactPhone: _emgPhoneController.text.trim().isEmpty
+          ? null
+          : _emgPhoneController.text.trim(),
     );
     if (details.cityId.isEmpty) {
       _showError('Enter a city');
@@ -462,9 +465,7 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
         final firstMissing = missing.first as String?;
         _showError('Missing: $firstMissing');
       } else {
-        _showError(
-          e.response?.data?['message'] as String? ?? 'Submit failed',
-        );
+        _showError(e.response?.data?['message'] as String? ?? 'Submit failed');
       }
     } catch (_) {
       if (!mounted) return;
@@ -533,15 +534,10 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                   ],
                 ),
               ),
-              _ProgressIndicator(
-                currentStep: _app?.flow?.currentStep ?? 3,
-              ),
+              _ProgressIndicator(currentStep: _app?.flow?.currentStep ?? 3),
               Expanded(
                 child: _error != null
-                    ? _ErrorView(
-                        message: _error!,
-                        onRetry: _load,
-                      )
+                    ? _ErrorView(message: _error!, onRetry: _load)
                     : SingleChildScrollView(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 18,
@@ -558,8 +554,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('personalDetails'),
                                 isExpanded: _expandedPart == 0,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 0 ? -1 : 0,
+                                  () => _expandedPart = _expandedPart == 0
+                                      ? -1
+                                      : 0,
                                 ),
                                 child: _PersonalDetailsForm(
                                   nameController: _nameController,
@@ -596,8 +593,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('profilePhoto'),
                                 isExpanded: _expandedPart == 1,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 1 ? -1 : 1,
+                                  () => _expandedPart = _expandedPart == 1
+                                      ? -1
+                                      : 1,
                                 ),
                                 child: _ProfilePhotoForm(
                                   photoPath: _profilePhotoPath,
@@ -614,8 +612,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('services'),
                                 isExpanded: _expandedPart == 2,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 2 ? -1 : 2,
+                                  () => _expandedPart = _expandedPart == 2
+                                      ? -1
+                                      : 2,
                                 ),
                                 child: _ServicesForm(
                                   categories: _categories,
@@ -646,8 +645,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('aadhaar'),
                                 isExpanded: _expandedPart == 3,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 3 ? -1 : 3,
+                                  () => _expandedPart = _expandedPart == 3
+                                      ? -1
+                                      : 3,
                                 ),
                                 child: _DocumentForm(
                                   numberController: _aadhaarController,
@@ -661,7 +661,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                       imageQuality: 85,
                                     );
                                     if (xfile != null && mounted) {
-                                      setState(() => _aadhaarFront = xfile.path);
+                                      setState(
+                                        () => _aadhaarFront = xfile.path,
+                                      );
                                     }
                                   },
                                   onPickBack: () async {
@@ -686,8 +688,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('pan'),
                                 isExpanded: _expandedPart == 4,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 4 ? -1 : 4,
+                                  () => _expandedPart = _expandedPart == 4
+                                      ? -1
+                                      : 4,
                                 ),
                                 child: _DocumentForm(
                                   numberController: _panController,
@@ -726,8 +729,9 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                 isComplete: _isPartComplete('bankDetails'),
                                 isExpanded: _expandedPart == 5,
                                 onToggle: () => setState(
-                                  () => _expandedPart =
-                                      _expandedPart == 5 ? -1 : 5,
+                                  () => _expandedPart = _expandedPart == 5
+                                      ? -1
+                                      : 5,
                                 ),
                                 child: _BankDetailsForm(
                                   holderController: _bankHolderController,
@@ -785,10 +789,12 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                                   label: _canSubmit
                                       ? 'Submit Application'
                                       : 'Complete all parts to submit',
-                                  onTap: _canSubmit && !_submitting && isEditable
+                                  onTap:
+                                      _canSubmit && !_submitting && isEditable
                                       ? _submit
                                       : () {},
-                                  enabled: _canSubmit && isEditable && !_submitting,
+                                  enabled:
+                                      _canSubmit && isEditable && !_submitting,
                                 ),
                               ),
                               const SizedBox(height: 24),
@@ -796,17 +802,18 @@ class _OnboardingDetailsPageState extends State<OnboardingDetailsPage> {
                           ),
                         ),
                       ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
   bool _isPartComplete(String key) {
-    return (_app?.detailSteps ?? const <DetailStep>[])
-        .any((s) => s.key == key && s.complete);
+    return (_app?.detailSteps ?? const <DetailStep>[]).any(
+      (s) => s.key == key && s.complete,
+    );
   }
 }
 
@@ -949,8 +956,8 @@ class _StepDot extends StatelessWidget {
         color: current
             ? AppColors.brandGold
             : done
-                ? AppColors.brandForest
-                : AppColors.borderSubtle,
+            ? AppColors.brandForest
+            : AppColors.borderSubtle,
         shape: BoxShape.circle,
       ),
       alignment: Alignment.center,
@@ -982,7 +989,11 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(LucideIcons.alertCircle, size: 48, color: Colors.redAccent),
+            const Icon(
+              LucideIcons.alertCircle,
+              size: 48,
+              color: Colors.redAccent,
+            ),
             const SizedBox(height: 16),
             Text(
               message,
@@ -1065,8 +1076,18 @@ class _PersonalDetailsFormState extends State<_PersonalDetailsForm> {
     final readOnly = !widget.isEditable;
     return Column(
       children: [
-        _field('Full Name (as on Aadhaar)', widget.nameController, readOnly, required: true),
-        _field('Date of Birth (YYYY-MM-DD)', widget.dobController, readOnly, required: true),
+        _field(
+          'Full Name (as on Aadhaar)',
+          widget.nameController,
+          readOnly,
+          required: true,
+        ),
+        _field(
+          'Date of Birth (YYYY-MM-DD)',
+          widget.dobController,
+          readOnly,
+          required: true,
+        ),
         const SizedBox(height: 8),
         const Align(
           alignment: Alignment.centerLeft,
@@ -1106,24 +1127,72 @@ class _PersonalDetailsFormState extends State<_PersonalDetailsForm> {
         const SizedBox(height: 8),
         _field('City', widget.cityController, readOnly, required: true),
         const SizedBox(height: 8),
-        _field('Address Line 1', widget.address1Controller, readOnly, required: true),
-        _field('Address Line 2', widget.address2Controller, readOnly, required: false),
-        _field('Pincode', widget.pincodeController, readOnly, required: true, keyboardType: TextInputType.number),
+        _field(
+          'Address Line 1',
+          widget.address1Controller,
+          readOnly,
+          required: true,
+        ),
+        _field(
+          'Address Line 2',
+          widget.address2Controller,
+          readOnly,
+          required: false,
+        ),
+        _field(
+          'Pincode',
+          widget.pincodeController,
+          readOnly,
+          required: true,
+          keyboardType: TextInputType.number,
+        ),
         _field('State', widget.stateController, readOnly, required: true),
-        _field('Email', widget.emailController, readOnly, required: false, keyboardType: TextInputType.emailAddress),
-        _field('Alternate Phone', widget.altPhoneController, readOnly, required: false, keyboardType: TextInputType.phone),
-        _field('Landmark', widget.landmarkController, readOnly, required: false),
+        _field(
+          'Email',
+          widget.emailController,
+          readOnly,
+          required: false,
+          keyboardType: TextInputType.emailAddress,
+        ),
+        _field(
+          'Alternate Phone',
+          widget.altPhoneController,
+          readOnly,
+          required: false,
+          keyboardType: TextInputType.phone,
+        ),
+        _field(
+          'Landmark',
+          widget.landmarkController,
+          readOnly,
+          required: false,
+        ),
         if (widget.emgNameController.text.isNotEmpty ||
             widget.emgPhoneController.text.isNotEmpty) ...[
-          _field('Emergency Contact Name', widget.emgNameController, readOnly, required: false),
-          _field('Emergency Contact Phone', widget.emgPhoneController, readOnly, required: false, keyboardType: TextInputType.phone),
+          _field(
+            'Emergency Contact Name',
+            widget.emgNameController,
+            readOnly,
+            required: false,
+          ),
+          _field(
+            'Emergency Contact Phone',
+            widget.emgPhoneController,
+            readOnly,
+            required: false,
+            keyboardType: TextInputType.phone,
+          ),
         ],
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           height: 42,
           child: FilledButton(
-            onPressed: readOnly ? null : widget.saving ? null : widget.onSave,
+            onPressed: readOnly
+                ? null
+                : widget.saving
+                ? null
+                : widget.onSave,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.brandForest,
               foregroundColor: Colors.white,
@@ -1173,7 +1242,11 @@ class _PersonalDetailsFormState extends State<_PersonalDetailsForm> {
 }
 
 class _GenderPill extends StatelessWidget {
-  const _GenderPill({required this.label, required this.selected, required this.onTap});
+  const _GenderPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
   final bool selected;
@@ -1273,8 +1346,9 @@ class _ProfilePhotoForm extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: FilledButton.icon(
-                onPressed:
-                    isEditable && !saving && photoPath != null ? onSave : null,
+                onPressed: isEditable && !saving && photoPath != null
+                    ? onSave
+                    : null,
                 icon: saving
                     ? const SizedBox(
                         height: 16,
@@ -1356,7 +1430,9 @@ class _ServicesFormState extends State<_ServicesForm> {
                 (c) => FilterChip(
                   label: Text(c.name),
                   selected: widget.selectedCategoryIds.contains(c.id),
-                  onSelected: readOnly ? null : (v) => widget.onCategoryToggle(c.id),
+                  onSelected: readOnly
+                      ? null
+                      : (v) => widget.onCategoryToggle(c.id),
                   selectedColor: AppColors.brandForest,
                   checkmarkColor: Colors.white,
                   labelStyle: TextStyle(
@@ -1385,7 +1461,7 @@ class _ServicesFormState extends State<_ServicesForm> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: _selectedHomeZoneId,
+          initialValue: _selectedHomeZoneId,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Home Zone',
@@ -1557,8 +1633,12 @@ class _BankDetailsForm extends StatelessWidget {
     return Column(
       children: [
         _docField('Account Holder Name', holderController, readOnly),
-        _docField('Account Number', accountController, readOnly,
-            keyboardType: TextInputType.number),
+        _docField(
+          'Account Number',
+          accountController,
+          readOnly,
+          keyboardType: TextInputType.number,
+        ),
         _docField('IFSC Code', ifscController, readOnly),
         _docField('Bank Name', bankNameController, readOnly),
         const SizedBox(height: 8),

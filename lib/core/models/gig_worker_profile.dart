@@ -1,5 +1,6 @@
 import 'kyc_document.dart';
 import 'skill.dart';
+import '../data/skills_data.dart';
 
 class GigWorkerProfile {
   const GigWorkerProfile({
@@ -28,6 +29,46 @@ class GigWorkerProfile {
 
   bool get isKycVerified => kycStatus == KycStatus.verified;
 
+  factory GigWorkerProfile.fromJson(Map<String, dynamic> json) {
+    final serviceArea = _readString(json, const [
+      'serviceArea',
+      'service_area',
+      'area',
+      'address',
+      'city',
+      'zoneName',
+    ]);
+    final latitude = _readDouble(json, const ['latitude', 'lat']) ?? 19.2836;
+    final longitude =
+        _readDouble(json, const ['longitude', 'lng', 'lon']) ?? 72.8727;
+    final rawSkills = json['skills'] ?? json['services'] ?? json['categories'];
+
+    return GigWorkerProfile(
+      name: _readString(json, const ['name', 'fullName', 'full_name']) ?? '',
+      phone: _readString(json, const ['phone', 'mobile', 'phoneNumber']) ?? '',
+      gender: _readString(json, const ['gender']) ?? 'Male',
+      serviceArea: serviceArea ?? '',
+      latitude: latitude,
+      longitude: longitude,
+      skills: _parseSkills(rawSkills),
+      kycStatus: _parseKycStatus(
+        _readString(json, const ['kycStatus', 'kyc_status', 'status']),
+      ),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'name': name,
+      'phone': phone,
+      'gender': gender,
+      'serviceArea': serviceArea,
+      'latitude': latitude,
+      'longitude': longitude,
+      'skills': skills.map((skill) => skill.id).toList(),
+    };
+  }
+
   GigWorkerProfile copyWith({
     String? name,
     String? phone,
@@ -52,4 +93,59 @@ class GigWorkerProfile {
       kycDocument: clearKycDocument ? null : (kycDocument ?? this.kycDocument),
     );
   }
+}
+
+String? _readString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value != null && value.toString().isNotEmpty) {
+      return value.toString();
+    }
+  }
+  return null;
+}
+
+double? _readDouble(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+  }
+  return null;
+}
+
+List<Skill> _parseSkills(Object? rawSkills) {
+  if (rawSkills is! List) return const <Skill>[];
+  return rawSkills
+      .map((raw) {
+        if (raw is Map<String, dynamic>) {
+          final id =
+              _readString(raw, const ['id', '_id', 'slug', 'categoryId']) ?? '';
+          final nestedId = raw['category'] is Map<String, dynamic>
+              ? _readString(raw['category'] as Map<String, dynamic>, const [
+                  'id',
+                  '_id',
+                  'slug',
+                ])
+              : null;
+          return skillById(nestedId ?? id);
+        }
+        return skillById(raw.toString());
+      })
+      .toList(growable: false);
+}
+
+KycStatus _parseKycStatus(String? rawStatus) {
+  final normalized = (rawStatus ?? '').toLowerCase().replaceAll(
+    RegExp(r'[^a-z]'),
+    '',
+  );
+  return switch (normalized) {
+    'inprogress' => KycStatus.inProgress,
+    'submitted' => KycStatus.submitted,
+    'verifying' || 'pending' || 'underreview' => KycStatus.verifying,
+    'verified' || 'approved' => KycStatus.verified,
+    'rejected' || 'failed' => KycStatus.rejected,
+    _ => KycStatus.notStarted,
+  };
 }

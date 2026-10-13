@@ -11,6 +11,7 @@ import 'features/onboarding/presentation/pages/onboarding_details_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_phone_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_verification_page.dart';
 import 'features/shell/presentation/pages/partner_shell.dart';
+import 'features/vendor/data/vendor_repository.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,7 @@ void main() {
   final storage = StorageService(FlutterSecureStorage());
   final apiClient = ApiClient(storage);
   OnboardingRepository.initialize(apiClient, storage);
+  VendorRepository.initialize(apiClient, storage);
 
   runApp(
     MediaQuery.withClampedTextScaling(
@@ -94,9 +96,7 @@ class _SplashPageState extends State<SplashPage> {
     if (step == 5) {
       screen = const PartnerShell();
     } else if (step == 4) {
-      screen = OnboardingVerificationPage(
-        phone: '',
-      );
+      screen = OnboardingVerificationPage(phone: '');
     } else if (step == 3) {
       screen = OnboardingDetailsPage(phone: '');
     } else {
