@@ -54,19 +54,90 @@ class VendorRepository {
     await _storage.clearTokens();
   }
 
-  Future<List<GigBooking>> getBookings() async {
-    final resp = await _dio.get<Map<String, dynamic>>('/vendor/bookings');
+  Future<List<GigBooking>> getAvailableJobs({int page = 1, int limit = 20}) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/jobs/available',
+      queryParameters: {'page': page, 'limit': limit},
+    );
     final data = _readData(resp);
-    final list = switch (data) {
-      final List<dynamic> items => items,
-      final Map<String, dynamic> map when map['bookings'] is List<dynamic> =>
-        map['bookings'] as List<dynamic>,
-      final Map<String, dynamic> map when map['items'] is List<dynamic> =>
-        map['items'] as List<dynamic>,
-      final Map<String, dynamic> map when map['results'] is List<dynamic> =>
-        map['results'] as List<dynamic>,
-      _ => const <dynamic>[],
+    final list = _extractList(data);
+    return list
+        .whereType<Map<String, dynamic>>()
+        .map(GigBooking.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<GigBooking> getAvailableJob(String id) async {
+    final resp = await _dio.get<Map<String, dynamic>>('/vendor/jobs/available/$id');
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<GigBooking> acceptJob(String id) async {
+    final resp = await _dio.post<Map<String, dynamic>>('/vendor/jobs/$id/accept');
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<GigBooking> startJob(String id, String otp) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/jobs/$id/start',
+      data: {'otp': otp},
+    );
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<GigBooking> verifyCompletionOtp(String id, String otp) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/jobs/$id/completion-otp',
+      data: {'otp': otp},
+    );
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<GigBooking> uploadCompletionImages(String id, List<MultipartFile> images) async {
+    final formData = FormData.fromMap({
+      'images': images,
+    });
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/jobs/$id/completion-images',
+      data: formData,
+    );
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<void> deleteCompletionImage(String id, String imageId) async {
+    await _dio.delete<Map<String, dynamic>>(
+      '/vendor/jobs/$id/completion-images/$imageId',
+    );
+  }
+
+  Future<GigBooking> completeJob(String id) async {
+    final resp = await _dio.post<Map<String, dynamic>>('/vendor/jobs/$id/complete');
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<List<GigBooking>> getMyJobs({
+    String? status,
+    String? scope,
+    String? sortBy,
+    String? sortOrder,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'page': page,
+      'limit': limit,
     };
+    if (status != null) queryParams['status'] = status;
+    if (scope != null) queryParams['scope'] = scope;
+    if (sortBy != null) queryParams['sortBy'] = sortBy;
+    if (sortOrder != null) queryParams['sortOrder'] = sortOrder;
+
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/bookings',
+      queryParameters: queryParams,
+    );
+    final data = _readData(resp);
+    final list = _extractList(data);
     return list
         .whereType<Map<String, dynamic>>()
         .map(GigBooking.fromJson)
@@ -78,11 +149,49 @@ class VendorRepository {
     return GigBooking.fromJson(_readObject(resp));
   }
 
+  Future<String> getCompletionImageUrl(String bookingId, String imageId) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/bookings/$bookingId/completion-images/$imageId',
+    );
+    final data = _readData(resp);
+    if (data is Map<String, dynamic> && data['url'] != null) {
+      return data['url'] as String;
+    }
+    throw DioException(
+      requestOptions: resp.requestOptions,
+      response: resp,
+      type: DioExceptionType.badResponse,
+    );
+  }
+
+  Future<void> recordPaymentCollected(String id, String method) async {
+    await _dio.post<Map<String, dynamic>>(
+      '/bookings/$id/payment/collect',
+      data: {'method': method},
+    );
+  }
+
   Object? _readData(Response<Map<String, dynamic>> resp) {
     if (resp.data case {'data': final data}) {
       return data;
     }
+    if (resp.data case {'items': final items}) {
+      return items;
+    }
     return resp.data;
+  }
+
+  List<dynamic> _extractList(Object? data) {
+    return switch (data) {
+      final List<dynamic> items => items,
+      final Map<String, dynamic> map when map['bookings'] is List<dynamic> =>
+        map['bookings'] as List<dynamic>,
+      final Map<String, dynamic> map when map['items'] is List<dynamic> =>
+        map['items'] as List<dynamic>,
+      final Map<String, dynamic> map when map['results'] is List<dynamic> =>
+        map['results'] as List<dynamic>,
+      _ => const <dynamic>[],
+    };
   }
 
   Map<String, dynamic> _readObject(Response<Map<String, dynamic>> resp) {

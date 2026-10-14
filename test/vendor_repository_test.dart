@@ -81,22 +81,40 @@ void main() {
       },
     );
 
-    test('getBookings calls GET /vendor/bookings and parses list', () async {
+    test('getMyJobs calls GET /vendor/bookings and parses list', () async {
       adapter.enqueue(<String, dynamic>{
         'data': <String, dynamic>{
           'bookings': <Map<String, dynamic>>[
-            _bookingJson(id: 'BK1', status: 'accepted'),
+            _bookingJson(id: 'BK1', status: 'assigned'),
             _bookingJson(id: 'BK2', status: 'completed'),
           ],
         },
       });
 
-      final bookings = await repository.getBookings();
+      final bookings = await repository.getMyJobs();
 
       expect(adapter.lastOptions.method, 'GET');
       expect(adapter.lastOptions.path, '/vendor/bookings');
       expect(bookings.map((booking) => booking.id), <String>['BK1', 'BK2']);
-      expect(bookings.first.status.label, 'Accepted');
+      expect(bookings.first.status.label, 'Assigned');
+    });
+
+    test('getAvailableJobs calls GET /vendor/jobs/available and parses list', () async {
+      adapter.enqueue(<String, dynamic>{
+        'data': <String, dynamic>{
+          'items': <Map<String, dynamic>>[
+            _bookingJson(id: 'BK1', status: 'pending'),
+            _bookingJson(id: 'BK2', status: 'pending'),
+          ],
+        },
+      });
+
+      final bookings = await repository.getAvailableJobs();
+
+      expect(adapter.lastOptions.method, 'GET');
+      expect(adapter.lastOptions.path, '/vendor/jobs/available');
+      expect(bookings.map((booking) => booking.id), <String>['BK1', 'BK2']);
+      expect(bookings.first.status.label, 'Pending');
     });
 
     test('getBookingDetails calls GET /vendor/bookings/{id}', () async {
@@ -109,7 +127,7 @@ void main() {
       expect(adapter.lastOptions.method, 'GET');
       expect(adapter.lastOptions.path, '/vendor/bookings/BK42');
       expect(booking.id, 'BK42');
-      expect(booking.status.label, 'In progress');
+      expect(booking.status.label, 'In Progress');
       expect(booking.customerName, 'Priya Shah');
     });
   });

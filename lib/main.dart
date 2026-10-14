@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'core/data/api_client.dart';
 import 'core/data/storage_service.dart';
+import 'core/state/app_state.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/data/onboarding_repository.dart';
@@ -20,6 +21,10 @@ void main() {
   final apiClient = ApiClient(storage);
   OnboardingRepository.initialize(apiClient, storage);
   VendorRepository.initialize(apiClient, storage);
+
+  // Initialize AppState with vendor repository
+  final vendorRepo = VendorRepository.instance;
+  AppState.instance.initialize(vendorRepo);
 
   runApp(
     MediaQuery.withClampedTextScaling(

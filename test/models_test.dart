@@ -51,24 +51,24 @@ void main() {
       expect(booking.totalPaid, 428);
     });
 
-    test('defaults to incoming status', () {
-      expect(booking.status, GigBookingStatus.incoming);
+    test('defaults to pending status', () {
+      expect(booking.status, GigBookingStatus.pending);
     });
 
     test('copyWith updates status only', () {
       final updated =
-          booking.copyWith(status: GigBookingStatus.accepted);
-      expect(updated.status, GigBookingStatus.accepted);
+          booking.copyWith(status: GigBookingStatus.assigned);
+      expect(updated.status, GigBookingStatus.assigned);
       expect(updated.payout, 399);
       expect(updated.customerName, 'Test User');
-      expect(booking.status, GigBookingStatus.incoming);
+      expect(booking.status, GigBookingStatus.pending);
     });
 
     test('status labels and isActive', () {
-      expect(GigBookingStatus.inProgress.label, 'In progress');
-      expect(GigBookingStatus.accepted.isActive, isTrue);
+      expect(GigBookingStatus.inProgress.label, 'In Progress');
+      expect(GigBookingStatus.assigned.isActive, isTrue);
       expect(GigBookingStatus.completed.isActive, isFalse);
-      expect(GigBookingStatus.declined.isActive, isFalse);
+      expect(GigBookingStatus.cancelled.isActive, isFalse);
     });
   });
 

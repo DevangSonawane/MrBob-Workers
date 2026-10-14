@@ -201,6 +201,7 @@ class _ActiveJobCard extends StatelessWidget {
     switch (session.phase) {
       case JobPhase.enroute:
       case JobPhase.arrived:
+      case JobPhase.otpVerified:
       case JobPhase.completed:
         Navigator.push(
           context,
@@ -209,7 +210,7 @@ class _ActiveJobCard extends StatelessWidget {
           ),
         );
       case JobPhase.otpPending:
-      case JobPhase.otpVerified:
+      case JobPhase.uploadingImages:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -229,6 +230,7 @@ String _ctaLabel(JobPhase phase) => switch (phase) {
       JobPhase.enroute || JobPhase.arrived => 'View booking',
       JobPhase.otpPending => 'Verify OTP',
       JobPhase.otpVerified => 'Start working',
+      JobPhase.uploadingImages => 'Upload photos',
       JobPhase.inProgress => 'Continue working',
       JobPhase.completed => 'View details',
     };
@@ -238,6 +240,7 @@ String _ctaLabel(JobPhase phase) => switch (phase) {
       JobPhase.arrived => ('Arrived', _blue),
       JobPhase.otpPending => ('OTP pending', _orange),
       JobPhase.otpVerified => ('OTP verified', _green),
+      JobPhase.uploadingImages => ('Uploading', _orange),
       JobPhase.inProgress => ('In progress', _blue),
       JobPhase.completed => ('Completed', _green),
     };
@@ -424,10 +427,11 @@ class _StatusChip extends StatelessWidget {
 Color _statusColor(GigBookingStatus status) => switch (status) {
       GigBookingStatus.completed => _green,
       GigBookingStatus.inProgress => _blue,
-      GigBookingStatus.accepted || GigBookingStatus.arrived => _amber,
-      GigBookingStatus.declined => AppColors.mutedText,
+      GigBookingStatus.assigned => _amber,
       GigBookingStatus.cancelled => _red,
-      GigBookingStatus.incoming => AppColors.mutedText,
+      GigBookingStatus.pending => AppColors.mutedText,
+      GigBookingStatus.matching => AppColors.mutedText,
+      GigBookingStatus.awaitingPayment => AppColors.mutedText,
     };
 
 const _green = Color(0xFF16A34A);

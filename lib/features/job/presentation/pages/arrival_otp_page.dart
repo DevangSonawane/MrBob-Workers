@@ -53,7 +53,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
   void _onOtpChanged() {
     if (_otpController.text.length != 4) return;
     final session = AppState.instance.activeJob.value;
-    if (session == null || session.phase == JobPhase.otpVerified) return;
+    if (session == null || session.phase == JobPhase.inProgress) return;
     _verify();
   }
 
@@ -65,15 +65,8 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
       return;
     }
     AppHaptics.confirm();
-    AppState.instance.verifyOtp();
+    AppState.instance.startJob(_otpController.text);
     FocusScope.of(context).unfocus();
-  }
-
-  /// State-only: navigation happens exactly once in the listener below.
-  void _startWorking() {
-    if (_goingToWork) return;
-    AppHaptics.success();
-    AppState.instance.startWorking();
   }
 
   void _goToWorkOnce() {
@@ -143,15 +136,15 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                           duration: const Duration(milliseconds: 250),
                           child: Text(
                             verified
-                                ? 'Step 3 of 4 · Start work'
-                                : 'Step 2 of 4 · Enter OTP',
+                                ? 'Step 2 of 4 · Starting...'
+                                : 'Step 1 of 4 · Enter start code',
                             key: ValueKey<bool>(verified),
                             style: const TextStyle(
                                 color: AppColors.mutedText, fontSize: 12),
                           ),
                         ),
                         const SizedBox(height: 6),
-                        _ThinBar(fraction: verified ? 0.66 : 0.5),
+                        _ThinBar(fraction: verified ? 0.5 : 0.25),
                         const SizedBox(height: 12),
                         _JobLine(booking: widget.booking),
                         const SizedBox(height: 10),
@@ -201,7 +194,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                   Padding(
                     padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomInset),
                     child: GestureDetector(
-                      onTap: verified ? _startWorking : _verify,
+                      onTap: verified ? _goToWorkOnce : _verify,
                       child: Container(
                         height: 46,
                         decoration: BoxDecoration(

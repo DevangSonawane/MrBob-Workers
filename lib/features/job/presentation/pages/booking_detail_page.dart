@@ -39,7 +39,7 @@ class BookingDetailPage extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                      child: _StepLine(current: 1),
+                      child: _StepLine(current: _currentStep),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
@@ -83,7 +83,7 @@ class BookingDetailPage extends StatelessWidget {
                         child: Container(
                           height: 44,
                           decoration: BoxDecoration(
-                            color: AppColors.brandForest,
+                            color: _primaryButtonColor,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
@@ -105,13 +105,32 @@ class BookingDetailPage extends StatelessWidget {
     );
   }
 
+  int get _currentStep {
+    return switch (booking.status) {
+      GigBookingStatus.pending || GigBookingStatus.matching => 1,
+      GigBookingStatus.assigned => 2,
+      GigBookingStatus.inProgress => 3,
+      GigBookingStatus.completed => 4,
+      _ => 1,
+    };
+  }
+
+  Color get _primaryButtonColor {
+    return switch (booking.status) {
+      GigBookingStatus.pending || GigBookingStatus.matching => AppColors.brandForest,
+      GigBookingStatus.assigned => AppColors.brandForest,
+      GigBookingStatus.inProgress => AppColors.brandForest,
+      _ => AppColors.brandForest,
+    };
+  }
+
   String _ctaLabel() {
     return switch (booking.status) {
-      GigBookingStatus.accepted => 'I have arrived',
-      GigBookingStatus.arrived => 'Enter OTP',
+      GigBookingStatus.pending || GigBookingStatus.matching => 'Accept job',
+      GigBookingStatus.assigned => 'I have arrived',
       GigBookingStatus.inProgress => 'Continue work',
       GigBookingStatus.completed => 'View completion',
-      _ => 'I have arrived',
+      _ => 'Accept job',
     };
   }
 
@@ -120,22 +139,27 @@ class BookingDetailPage extends StatelessWidget {
     final active = AppState.instance.activeJob.value;
     final isActiveBooking =
         active != null && active.booking.id == booking.id;
-    if (booking.status == GigBookingStatus.accepted ||
-        (!isActiveBooking && booking.status == GigBookingStatus.incoming)) {
+    if (booking.status == GigBookingStatus.pending ||
+        booking.status == GigBookingStatus.matching) {
       if (!isActiveBooking) AppState.instance.acceptBooking(booking);
       AppState.instance.markArrived();
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
-    } else if (booking.status == GigBookingStatus.arrived) {
+    } else if (booking.status == GigBookingStatus.assigned) {
+      if (!isActiveBooking) {
+        AppState.instance.markArrived();
+      }
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
     } else if (booking.status == GigBookingStatus.inProgress) {
       Navigator.push(context,
           MaterialPageRoute(builder: (_) => const InProgressPage()));
     } else {
-      AppState.instance.markArrived();
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
+      // For completed or other statuses, just go to arrival OTP if we have an active job
+      if (isActiveBooking) {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
+      }
     }
   }
 

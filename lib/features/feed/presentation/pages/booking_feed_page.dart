@@ -124,13 +124,14 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
     switch (session.phase) {
       case JobPhase.enroute:
       case JobPhase.arrived:
+      case JobPhase.otpVerified:
         Navigator.push(
           context,
           MaterialPageRoute(
               builder: (_) => BookingDetailPage(booking: session.booking)),
         );
       case JobPhase.otpPending:
-      case JobPhase.otpVerified:
+      case JobPhase.uploadingImages:
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -489,6 +490,7 @@ class _ActiveJobRow extends StatelessWidget {
         JobPhase.enroute => 'Go to customer',
         JobPhase.arrived || JobPhase.otpPending => 'Enter OTP',
         JobPhase.otpVerified => 'Start work',
+        JobPhase.uploadingImages => 'Upload photos',
         JobPhase.inProgress => 'Continue work',
         JobPhase.completed => 'View details',
       };
@@ -505,6 +507,7 @@ class _ThinProgress extends StatelessWidget {
       JobPhase.enroute => 1,
       JobPhase.arrived || JobPhase.otpPending => 2,
       JobPhase.otpVerified => 3,
+      JobPhase.uploadingImages => 3,
       JobPhase.inProgress => 3,
       JobPhase.completed => 4,
     };

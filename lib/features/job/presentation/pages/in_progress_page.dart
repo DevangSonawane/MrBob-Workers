@@ -7,7 +7,7 @@ import '../../../../core/models/job_session.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
-import 'job_complete_page.dart';
+import 'completion_otp_page.dart';
 
 /// S11 — working screen. Timer + job line + finish. No checklist, no scroll.
 class InProgressPage extends StatefulWidget {
@@ -43,11 +43,10 @@ class _InProgressPageState extends State<InProgressPage> {
     if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _finishing = true;
     AppHaptics.confirm();
-    AppState.instance.completeJob();
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => JobCompletePage(booking: session.booking)),
+          builder: (_) => CompletionOtpPage(booking: session.booking)),
     ).then((_) {
       if (mounted) _finishing = false;
     });
