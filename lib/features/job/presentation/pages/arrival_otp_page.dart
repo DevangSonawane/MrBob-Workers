@@ -74,6 +74,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
         ),
       );
     }
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
   }
 

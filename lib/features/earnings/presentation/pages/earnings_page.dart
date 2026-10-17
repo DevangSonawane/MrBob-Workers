@@ -2,18 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/gig_booking.dart';
+import '../../../../core/models/vendor_wallet.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/primary_button.dart';
+import '../../../vendor/data/vendor_repository.dart';
 
 /// S7 tab 3 — wallet-style earnings (client wallet page layout):
 /// big total earned, pending/available amount cards and one
 /// payout row per completed booking.
-class EarningsPage extends StatelessWidget {
+class EarningsPage extends StatefulWidget {
   const EarningsPage({super.key});
 
-  Future<void> _refresh() => AppState.instance.refreshBookings();
+  @override
+  State<EarningsPage> createState() => _EarningsPageState();
+}
+
+class _EarningsPageState extends State<EarningsPage> {
+  WalletSummary? _wallet;
+  PendingWalletEarnings? _pending;
+  List<WalletTransaction> _transactions = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    try {
+      final repo = VendorRepository.instance;
+      final results = await Future.wait<Object>([
+        repo.getWallet(),
+        repo.getWalletTransactions(),
+        repo.getPendingWalletEarnings(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _wallet = results[0] as WalletSummary;
+        _transactions = results[1] as List<WalletTransaction>;
+        _pending = results[2] as PendingWalletEarnings;
+      });
+    } on StateError {
+      // Repository is intentionally unavailable in isolated widget tests.
+    } catch (_) {
+      // Keep the previous values visible; pull-to-refresh can retry.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +76,11 @@ class EarningsPage extends StatelessWidget {
                       children: [
                         const _Header(),
                         const SizedBox(height: 30),
-                        _BalanceSummary(total: AppState.instance.totalEarned),
+                        _BalanceSummary(
+                          total:
+                              _wallet?.balance.toInt() ??
+                              AppState.instance.totalEarned,
+                        ),
                         const SizedBox(height: 28),
                         Row(
                           children: [
@@ -48,7 +88,9 @@ class EarningsPage extends StatelessWidget {
                               child: _WalletAmountCard(
                                 title: 'Pending payout',
                                 amount: _formatAmount(
-                                  AppState.instance.pendingPayout,
+                                  _pending?.onHold.toInt() ??
+                                      _wallet?.onHold.toInt() ??
+                                      AppState.instance.pendingPayout,
                                 ),
                                 accent: AppColors.brandGold,
                               ),
@@ -58,7 +100,8 @@ class EarningsPage extends StatelessWidget {
                               child: _WalletAmountCard(
                                 title: 'Available balance',
                                 amount: _formatAmount(
-                                  AppState.instance.availableBalance,
+                                  _wallet?.readyForPayout.toInt() ??
+                                      AppState.instance.availableBalance,
                                 ),
                               ),
                             ),
@@ -68,27 +111,31 @@ class EarningsPage extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: completed.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 72),
-                              EmptyState(
-                                icon: LucideIcons.wallet,
-                                title: 'No payouts yet',
-                                subtitle:
-                                    'Complete a job to see your earnings here.',
-                              ),
-                            ],
-                          )
-                        : ListView(
-                            padding: const EdgeInsets.fromLTRB(20, 30, 20, 112),
-                            children: [
-                              const _SectionHeader(title: 'Payouts'),
-                              const SizedBox(height: 14),
-                              _PayoutsCard(bookings: completed),
-                            ],
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 30, 20, 112),
+                      children: [
+                        if (_transactions.isNotEmpty) ...[
+                          const _SectionHeader(title: 'Transactions'),
+                          const SizedBox(height: 14),
+                          _WalletTransactionsCard(transactions: _transactions),
+                          const SizedBox(height: 24),
+                        ],
+                        if (completed.isNotEmpty) ...[
+                          const _SectionHeader(title: 'Completed jobs'),
+                          const SizedBox(height: 14),
+                          _PayoutsCard(bookings: completed),
+                        ] else if (_transactions.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 72),
+                            child: EmptyState(
+                              icon: LucideIcons.wallet,
+                              title: 'No wallet activity yet',
+                              subtitle: 'Completed jobs and payouts will appear here.',
+                            ),
                           ),
+                      ],
+                    ),
                   ),
                 ],
               );
@@ -150,7 +197,7 @@ class _BalanceSummary extends StatelessWidget {
             Icon(LucideIcons.wallet, color: AppColors.mutedText, size: 18),
             SizedBox(width: 8),
             Text(
-              'Total earned',
+              'Wallet balance',
               style: TextStyle(
                 color: AppColors.mutedText,
                 fontSize: 13,
@@ -291,6 +338,72 @@ class _PayoutsCard extends StatelessWidget {
           for (var i = 0; i < bookings.length; i++) ...[
             _PayoutRow(booking: bookings[i]),
             if (i != bookings.length - 1)
+              const Divider(height: 1, color: AppColors.borderSubtle),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WalletTransactionsCard extends StatelessWidget {
+  const _WalletTransactionsCard({required this.transactions});
+
+  final List<WalletTransaction> transactions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: _cardDecoration(),
+      child: Column(
+        children: [
+          for (var i = 0; i < transactions.length; i++) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              child: Row(
+                children: [
+                  Icon(
+                    transactions[i].type == 'PAYOUT'
+                        ? LucideIcons.arrowUpRight
+                        : LucideIcons.arrowDownLeft,
+                    size: 18,
+                    color: AppColors.brandForest,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          transactions[i].title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.brandForest,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          transactions[i].status.replaceAll('_', ' '),
+                          style: const TextStyle(
+                            color: AppColors.mutedText,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    '₹${_formatAmount(transactions[i].amount.toInt())}',
+                    style: const TextStyle(
+                      color: AppColors.brandForest,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (i != transactions.length - 1)
               const Divider(height: 1, color: AppColors.borderSubtle),
           ],
         ],

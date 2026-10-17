@@ -4,6 +4,7 @@ import '../../../core/data/api_client.dart';
 import '../../../core/data/storage_service.dart';
 import '../../../core/models/gig_booking.dart';
 import '../../../core/models/gig_worker_profile.dart';
+import '../../../core/models/vendor_wallet.dart';
 
 class VendorRepository {
   VendorRepository._(this._apiClient, this._storage);
@@ -54,7 +55,10 @@ class VendorRepository {
     await _storage.clearTokens();
   }
 
-  Future<List<GigBooking>> getAvailableJobs({int page = 1, int limit = 20}) async {
+  Future<List<GigBooking>> getAvailableJobs({
+    int page = 1,
+    int limit = 20,
+  }) async {
     final resp = await _dio.get<Map<String, dynamic>>(
       '/vendor/jobs/available',
       queryParameters: {'page': page, 'limit': limit},
@@ -68,12 +72,16 @@ class VendorRepository {
   }
 
   Future<GigBooking> getAvailableJob(String id) async {
-    final resp = await _dio.get<Map<String, dynamic>>('/vendor/jobs/available/$id');
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/jobs/available/$id',
+    );
     return GigBooking.fromJson(_readObject(resp));
   }
 
   Future<GigBooking> acceptJob(String id) async {
-    final resp = await _dio.post<Map<String, dynamic>>('/vendor/jobs/$id/accept');
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/jobs/$id/accept',
+    );
     return GigBooking.fromJson(_readObject(resp));
   }
 
@@ -93,10 +101,11 @@ class VendorRepository {
     return GigBooking.fromJson(_readObject(resp));
   }
 
-  Future<GigBooking> uploadCompletionImages(String id, List<MultipartFile> images) async {
-    final formData = FormData.fromMap({
-      'images': images,
-    });
+  Future<GigBooking> uploadCompletionImages(
+    String id,
+    List<MultipartFile> images,
+  ) async {
+    final formData = FormData.fromMap({'images': images});
     final resp = await _dio.post<Map<String, dynamic>>(
       '/vendor/jobs/$id/completion-images',
       data: formData,
@@ -111,7 +120,9 @@ class VendorRepository {
   }
 
   Future<GigBooking> completeJob(String id) async {
-    final resp = await _dio.post<Map<String, dynamic>>('/vendor/jobs/$id/complete');
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/jobs/$id/complete',
+    );
     return GigBooking.fromJson(_readObject(resp));
   }
 
@@ -123,10 +134,7 @@ class VendorRepository {
     int page = 1,
     int limit = 20,
   }) async {
-    final queryParams = <String, dynamic>{
-      'page': page,
-      'limit': limit,
-    };
+    final queryParams = <String, dynamic>{'page': page, 'limit': limit};
     if (status != null) queryParams['status'] = status;
     if (scope != null) queryParams['scope'] = scope;
     if (sortBy != null) queryParams['sortBy'] = sortBy;
@@ -169,6 +177,67 @@ class VendorRepository {
       '/bookings/$id/payment/collect',
       data: {'method': method},
     );
+  }
+
+  Future<WalletSummary> getWallet() async {
+    final resp = await _dio.get<Map<String, dynamic>>('/vendor/wallet');
+    return WalletSummary.fromJson(_readObject(resp));
+  }
+
+  Future<List<WalletTransaction>> getWalletTransactions({
+    String? type,
+    String? status,
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/wallet/transactions',
+      queryParameters: {
+        'page': page,
+        'limit': limit,
+        if (type case final type?) 'type': type,
+        if (status case final status?) 'status': status,
+      },
+    );
+    final data = _readData(resp);
+    return _extractList(data)
+        .whereType<Map<String, dynamic>>()
+        .map(WalletTransaction.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<PendingWalletEarnings> getPendingWalletEarnings({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/wallet/pending',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    final data = resp.data?['data'] ?? resp.data;
+    if (data is Map<String, dynamic>) {
+      return PendingWalletEarnings.fromJson(data);
+    }
+    throw DioException(
+      requestOptions: resp.requestOptions,
+      response: resp,
+      type: DioExceptionType.badResponse,
+    );
+  }
+
+  Future<PayoutAccount> getPayoutAccount() async {
+    final resp = await _dio.get<Map<String, dynamic>>('/vendor/payout-account');
+    return PayoutAccount.fromJson(_readObject(resp));
+  }
+
+  Future<PayoutAccount> updatePayoutAccount(
+    Map<String, dynamic> changes,
+  ) async {
+    final resp = await _dio.put<Map<String, dynamic>>(
+      '/vendor/payout-account',
+      data: changes,
+    );
+    return PayoutAccount.fromJson(_readObject(resp));
   }
 
   Object? _readData(Response<Map<String, dynamic>> resp) {

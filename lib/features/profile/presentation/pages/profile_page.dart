@@ -3,12 +3,15 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/gig_worker_profile.dart';
 import '../../../../core/models/kyc_document.dart';
+import '../../../../core/models/vendor_wallet.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
 import '../../../../features/onboarding/data/onboarding_repository.dart';
+import '../../../vendor/data/vendor_repository.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../skills/presentation/pages/skills_select_page.dart';
+import 'payout_account_page.dart';
 
 /// S7 tab 4 — worker profile.
 class ProfilePage extends StatelessWidget {
@@ -47,6 +50,8 @@ class ProfilePage extends StatelessWidget {
                   _SkillsCard(profile: profile),
                   const SizedBox(height: 20),
                   _DocumentsCard(profile: profile),
+                  const SizedBox(height: 20),
+                  const _PayoutAccountSection(),
                   const SizedBox(height: 32),
                   const _SignOut(),
                 ],
@@ -392,6 +397,112 @@ class _DocumentsCard extends StatelessWidget {
                   ],
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PayoutAccountSection extends StatefulWidget {
+  const _PayoutAccountSection();
+
+  @override
+  State<_PayoutAccountSection> createState() => _PayoutAccountSectionState();
+}
+
+class _PayoutAccountSectionState extends State<_PayoutAccountSection> {
+  PayoutAccount? _account;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final account = await VendorRepository.instance.getPayoutAccount();
+      if (mounted) setState(() => _account = account);
+    } catch (_) {
+      // The page remains usable so a worker can add their account.
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _edit() async {
+    final updated = await Navigator.push<PayoutAccount>(
+      context,
+      MaterialPageRoute(builder: (_) => PayoutAccountPage(account: _account)),
+    );
+    if (updated != null && mounted) setState(() => _account = updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final account = _account;
+    final verified = account?.isVerified ?? false;
+    final destination = account == null
+        ? 'Add a bank account or UPI ID to receive payouts.'
+        : account.hasBankAccount
+        ? '${account.bankName ?? 'Bank account'} · ${account.maskedAccountNumber ?? ''}'
+        : account.upiId ?? 'No payout account added';
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
+        child: Row(
+          children: [
+            const Icon(LucideIcons.landmark, color: AppColors.brandForest),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payout account',
+                    style: TextStyle(
+                      color: AppColors.brandForest,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _loading ? 'Loading account details…' : destination,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (account != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      verified ? 'Verified' : 'Verification pending',
+                      style: TextStyle(
+                        color: verified
+                            ? const Color(0xFF16A34A)
+                            : AppColors.brandGold,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: _edit,
+              child: Text(account == null ? 'Add' : 'Edit'),
+            ),
           ],
         ),
       ),

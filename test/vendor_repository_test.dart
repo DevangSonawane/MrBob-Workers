@@ -154,6 +154,74 @@ void main() {
       expect(booking.status.label, 'In Progress');
       expect(booking.customerName, 'Priya Shah');
     });
+
+    test('wallet endpoints parse the live response shapes', () async {
+      adapter.enqueue(<String, dynamic>{
+        'data': <String, dynamic>{
+          'balance': 897,
+          'onHold': 299,
+          'readyForPayout': 598,
+          'totalPaidOut': 1450,
+          'totalEarned': 2696,
+          'holdLabel': '2 days',
+        },
+      });
+      final wallet = await repository.getWallet();
+      expect(adapter.lastOptions.path, '/vendor/wallet');
+      expect(wallet.readyForPayout, 598);
+
+      adapter.enqueue(<String, dynamic>{
+        'items': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'id': 'TX1',
+            'title': 'Earning for BK-000123',
+            'amount': 299,
+            'type': 'EARNING',
+            'status': 'ON_HOLD',
+            'createdAt': '2026-10-18T10:00:00.000Z',
+          },
+        ],
+      });
+      final transactions = await repository.getWalletTransactions();
+      expect(adapter.lastOptions.path, '/vendor/wallet/transactions');
+      expect(transactions.single.status, 'ON_HOLD');
+
+      adapter.enqueue(<String, dynamic>{
+        'items': <Map<String, dynamic>>[],
+        'totals': <String, dynamic>{
+          'pending': 299,
+          'onHold': 299,
+          'readyForPayout': 0,
+        },
+      });
+      final pending = await repository.getPendingWalletEarnings();
+      expect(adapter.lastOptions.path, '/vendor/wallet/pending');
+      expect(pending.pending, 299);
+    });
+
+    test('payout account can be read and updated', () async {
+      final account = <String, dynamic>{
+        'status': 'VERIFIED',
+        'maskedAccountNumber': 'XXXX6789',
+        'bankName': 'HDFC Bank',
+        'hasBankAccount': true,
+        'hasUpi': true,
+        'upiId': 'ravi@okhdfc',
+      };
+      adapter.enqueue(<String, dynamic>{'data': account});
+      final current = await repository.getPayoutAccount();
+      expect(adapter.lastOptions.path, '/vendor/payout-account');
+      expect(current.maskedAccountNumber, 'XXXX6789');
+      expect(current.isVerified, isTrue);
+
+      adapter.enqueue(<String, dynamic>{'data': account});
+      await repository.updatePayoutAccount(<String, dynamic>{
+        'upiId': 'new@okhdfc',
+      });
+      expect(adapter.lastOptions.method, 'PUT');
+      expect(adapter.lastOptions.path, '/vendor/payout-account');
+      expect(adapter.lastBody, contains('new@okhdfc'));
+    });
   });
 }
 

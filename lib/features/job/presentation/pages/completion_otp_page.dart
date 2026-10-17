@@ -70,6 +70,7 @@ class _CompletionOtpPageState extends State<CompletionOtpPage> {
         ),
       );
     }
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
   }
 
