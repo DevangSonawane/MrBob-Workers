@@ -46,7 +46,8 @@ class _InProgressPageState extends State<InProgressPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (_) => CompletionOtpPage(booking: session.booking)),
+        builder: (_) => CompletionOtpPage(booking: session.booking),
+      ),
     ).then((_) {
       if (mounted) _finishing = false;
     });
@@ -54,6 +55,7 @@ class _InProgressPageState extends State<InProgressPage> {
 
   void _popOnce() {
     if (_popped || !mounted) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _popped = true;
     Navigator.pop(context);
   }
@@ -67,11 +69,14 @@ class _InProgressPageState extends State<InProgressPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: const Text('Working',
-            style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Working',
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
@@ -91,9 +96,13 @@ class _InProgressPageState extends State<InProgressPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Step 3 of 4 · Working',
-                            style: TextStyle(
-                                color: AppColors.mutedText, fontSize: 12)),
+                        const Text(
+                          'Step 3 of 4 · Working',
+                          style: TextStyle(
+                            color: AppColors.mutedText,
+                            fontSize: 12,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         Container(
                           height: 3,
@@ -121,21 +130,23 @@ class _InProgressPageState extends State<InProgressPage> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 14),
+                        vertical: 18,
+                        horizontal: 14,
+                      ),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: AppColors.borderSubtle),
+                        border: Border.all(color: AppColors.borderSubtle),
                       ),
                       child: Column(
                         children: [
                           Text(
                             _formatElapsed(session.elapsed),
                             style: const TextStyle(
-                                color: AppColors.brandForest,
-                                fontSize: 34,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.8),
+                              color: AppColors.brandForest,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.8,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -144,8 +155,9 @@ class _InProgressPageState extends State<InProgressPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                color: AppColors.mutedText,
-                                fontSize: 12.5),
+                              color: AppColors.mutedText,
+                              fontSize: 12.5,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -154,8 +166,9 @@ class _InProgressPageState extends State<InProgressPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                color: AppColors.mutedText,
-                                fontSize: 12),
+                              color: AppColors.mutedText,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -173,11 +186,14 @@ class _InProgressPageState extends State<InProgressPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
-                        child: const Text('Mark as complete',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700)),
+                        child: const Text(
+                          'Mark as complete',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
                     ),
                   ),

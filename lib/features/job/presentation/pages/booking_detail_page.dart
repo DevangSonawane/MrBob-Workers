@@ -43,9 +43,7 @@ class BookingDetailPage extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-                      child: _Card(
-                        child: _AddressLines(booking: booking),
-                      ),
+                      child: _Card(child: _AddressLines(booking: booking)),
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -67,7 +65,8 @@ class BookingDetailPage extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   border: Border(
-                      top: BorderSide(color: AppColors.borderSubtle)),
+                    top: BorderSide(color: AppColors.borderSubtle),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -87,11 +86,14 @@ class BookingDetailPage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           alignment: Alignment.center,
-                          child: Text(_ctaLabel(),
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700)),
+                          child: Text(
+                            _ctaLabel(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -117,7 +119,8 @@ class BookingDetailPage extends StatelessWidget {
 
   Color get _primaryButtonColor {
     return switch (booking.status) {
-      GigBookingStatus.pending || GigBookingStatus.matching => AppColors.brandForest,
+      GigBookingStatus.pending ||
+      GigBookingStatus.matching => AppColors.brandForest,
       GigBookingStatus.assigned => AppColors.brandForest,
       GigBookingStatus.inProgress => AppColors.brandForest,
       _ => AppColors.brandForest,
@@ -134,31 +137,53 @@ class BookingDetailPage extends StatelessWidget {
     };
   }
 
-  void _onPrimary(BuildContext context) {
+  Future<void> _onPrimary(BuildContext context) async {
     AppHaptics.confirm();
     final active = AppState.instance.activeJob.value;
-    final isActiveBooking =
-        active != null && active.booking.id == booking.id;
+    final isActiveBooking = active != null && active.booking.id == booking.id;
     if (booking.status == GigBookingStatus.pending ||
         booking.status == GigBookingStatus.matching) {
-      if (!isActiveBooking) AppState.instance.acceptBooking(booking);
+      if (!isActiveBooking) {
+        try {
+          await AppState.instance.acceptBooking(booking);
+        } catch (_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not accept this job. Try again.'),
+              ),
+            );
+          }
+          return;
+        }
+      }
       AppState.instance.markArrived();
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
+      if (!context.mounted) return;
+      final accepted = AppState.instance.activeJob.value?.booking ?? booking;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: accepted)),
+      );
     } else if (booking.status == GigBookingStatus.assigned) {
       if (!isActiveBooking) {
         AppState.instance.markArrived();
       }
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)),
+      );
     } else if (booking.status == GigBookingStatus.inProgress) {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => const InProgressPage()));
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const InProgressPage()),
+      );
     } else {
       // For completed or other statuses, just go to arrival OTP if we have an active job
       if (isActiveBooking) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ArrivalOtpPage(booking: booking)),
+        );
       }
     }
   }
@@ -167,26 +192,33 @@ class BookingDetailPage extends StatelessWidget {
     AppHaptics.press();
     final destination = '${booking.latitude},${booking.longitude}';
     final googleMaps = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=$destination');
+      'https://www.google.com/maps/dir/?api=1&destination=$destination',
+    );
     final geoIntent = Uri.parse('geo:$destination?q=$destination');
     try {
       var launched = false;
       if (await canLaunchUrl(googleMaps)) {
-        launched = await launchUrl(googleMaps,
-            mode: LaunchMode.externalApplication);
+        launched = await launchUrl(
+          googleMaps,
+          mode: LaunchMode.externalApplication,
+        );
       }
       if (!launched && await canLaunchUrl(geoIntent)) {
-        launched =
-            await launchUrl(geoIntent, mode: LaunchMode.externalApplication);
+        launched = await launchUrl(
+          geoIntent,
+          mode: LaunchMode.externalApplication,
+        );
       }
       if (!launched && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No maps app available')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No maps app available')));
       }
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open directions')));
+        const SnackBar(content: Text('Could not open directions')),
+      );
     }
   }
 }
@@ -212,8 +244,10 @@ class _MapHeaderState extends State<_MapHeader> {
             behavior: HitTestBehavior.opaque,
             onPanUpdate: (d) => setState(() {
               _offset += d.delta;
-              _offset = Offset(_offset.dx.clamp(-180, 180),
-                  _offset.dy.clamp(-220, 220));
+              _offset = Offset(
+                _offset.dx.clamp(-180, 180),
+                _offset.dy.clamp(-220, 220),
+              );
             }),
             child: OsmTileBackground(
               offset: _offset,
@@ -222,7 +256,8 @@ class _MapHeaderState extends State<_MapHeader> {
             ),
           ),
           const Center(
-              child: MapPinMarker(color: AppColors.brandForest, size: 36)),
+            child: MapPinMarker(color: AppColors.brandForest, size: 36),
+          ),
           Positioned(
             top: 10,
             left: 12,
@@ -239,8 +274,11 @@ class _MapHeaderState extends State<_MapHeader> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: AppColors.borderSubtle),
                 ),
-                child: const Icon(LucideIcons.arrowLeft,
-                    size: 18, color: AppColors.brandForest),
+                child: const Icon(
+                  LucideIcons.arrowLeft,
+                  size: 18,
+                  color: AppColors.brandForest,
+                ),
               ),
             ),
           ),
@@ -248,8 +286,7 @@ class _MapHeaderState extends State<_MapHeader> {
             left: 12,
             bottom: 10,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(999),
@@ -258,9 +295,10 @@ class _MapHeaderState extends State<_MapHeader> {
               child: Text(
                 '${widget.booking.distanceKm} km · ~${widget.booking.etaMinutes} min',
                 style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600),
+                  color: AppColors.brandForest,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -282,34 +320,49 @@ class _TitleRow extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-              color: booking.skill.color, shape: BoxShape.circle),
+            color: booking.skill.color,
+            shape: BoxShape.circle,
+          ),
           alignment: Alignment.center,
-          child: Icon(booking.skill.icon,
-              color: AppColors.brandForest, size: 20),
+          child: Icon(
+            booking.skill.icon,
+            color: AppColors.brandForest,
+            size: 20,
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(booking.skill.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: AppColors.brandForest,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700)),
-              Text('${booking.slotLabel} · ${booking.durationLabel}',
-                  style: const TextStyle(
-                      color: AppColors.mutedText, fontSize: 12)),
+              Text(
+                booking.skill.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.brandForest,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${booking.slotLabel} · ${booking.durationLabel}',
+                style: const TextStyle(
+                  color: AppColors.mutedText,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),
-        Text('₹${booking.payout}',
-            style: const TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 18,
-                fontWeight: FontWeight.w800)),
+        Text(
+          '₹${booking.payout}',
+          style: const TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ],
     );
   }
@@ -325,11 +378,14 @@ class _StepLine extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Step $current of 4 · ${labels[current - 1]}',
-            style: const TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 12,
-                fontWeight: FontWeight.w500)),
+        Text(
+          'Step $current of 4 · ${labels[current - 1]}',
+          style: const TextStyle(
+            color: AppColors.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         const SizedBox(height: 6),
         Row(
           children: [
@@ -381,29 +437,36 @@ class _AddressLines extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(booking.addressLine,
-            style: const TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                height: 1.4)),
+        Text(
+          booking.addressLine,
+          style: const TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text('Landmark: ${booking.landmark}',
-            style: const TextStyle(
-                color: AppColors.mutedText, fontSize: 12)),
+        Text(
+          'Landmark: ${booking.landmark}',
+          style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+        ),
         const SizedBox(height: 6),
         GestureDetector(
           onTap: () {
             Clipboard.setData(ClipboardData(text: booking.addressLine));
             AppHaptics.tick();
-            ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Address copied')));
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Address copied')));
           },
-          child: const Text('Copy address',
-              style: TextStyle(
-                  color: AppColors.brandForest,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600)),
+          child: const Text(
+            'Copy address',
+            style: TextStyle(
+              color: AppColors.brandForest,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );
@@ -420,45 +483,52 @@ class _CustomerRow extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor:
-              AppColors.brandForest.withValues(alpha: 0.07),
+          backgroundColor: AppColors.brandForest.withValues(alpha: 0.07),
           child: Text(
-              booking.customerName.isNotEmpty
-                  ? booking.customerName[0].toUpperCase()
-                  : 'C',
-              style: const TextStyle(
-                  color: AppColors.brandForest,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700)),
+            booking.customerName.isNotEmpty
+                ? booking.customerName[0].toUpperCase()
+                : 'C',
+            style: const TextStyle(
+              color: AppColors.brandForest,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(booking.customerName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: AppColors.brandForest,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
               Text(
-                  '${booking.customerRating.toStringAsFixed(1)} rated',
-                  style: const TextStyle(
-                      color: AppColors.mutedText, fontSize: 12)),
+                booking.customerName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.brandForest,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                '${booking.customerRating.toStringAsFixed(1)} rated',
+                style: const TextStyle(
+                  color: AppColors.mutedText,
+                  fontSize: 12,
+                ),
+              ),
             ],
           ),
         ),
         GestureDetector(
           onTap: () {
             AppHaptics.press();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Calling is disabled in demo')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Calling is disabled in demo')),
+            );
           },
           child: Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 14, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: AppColors.borderSubtle),
@@ -466,14 +536,16 @@ class _CustomerRow extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.phone,
-                    size: 14, color: AppColors.brandForest),
+                Icon(LucideIcons.phone, size: 14, color: AppColors.brandForest),
                 SizedBox(width: 5),
-                Text('Call',
-                    style: TextStyle(
-                        color: AppColors.brandForest,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
+                Text(
+                  'Call',
+                  style: TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
@@ -492,17 +564,23 @@ class _NotesLines extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(booking.skill.subtitle,
-            style: const TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600)),
+        Text(
+          booking.skill.subtitle,
+          style: const TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 3),
-        Text(booking.notes,
-            style: const TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 13,
-                height: 1.4)),
+        Text(
+          booking.notes,
+          style: const TextStyle(
+            color: AppColors.mutedText,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
       ],
     );
   }
@@ -529,27 +607,34 @@ class _EarningsLines extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: Text(l,
-                style: TextStyle(
-                    color: total
-                        ? AppColors.brandForest
-                        : AppColors.mutedText,
-                    fontSize: total ? 13.5 : 13,
-                    fontWeight:
-                        total ? FontWeight.w700 : FontWeight.w500))),
-        Text(v,
+          child: Text(
+            l,
             style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: total ? 16 : 13.5,
-                fontWeight: FontWeight.w800)),
+              color: total ? AppColors.brandForest : AppColors.mutedText,
+              fontSize: total ? 13.5 : 13,
+              fontWeight: total ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+        Text(
+          v,
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: total ? 16 : 13.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ],
     );
   }
 }
 
 class _OutlineAction extends StatelessWidget {
-  const _OutlineAction(
-      {required this.icon, required this.label, required this.onTap});
+  const _OutlineAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -572,11 +657,14 @@ class _OutlineAction extends StatelessWidget {
           children: [
             Icon(icon, size: 15, color: AppColors.brandForest),
             const SizedBox(width: 5),
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.brandForest,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

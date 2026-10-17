@@ -99,22 +99,46 @@ void main() {
       expect(bookings.first.status.label, 'Assigned');
     });
 
-    test('getAvailableJobs calls GET /vendor/jobs/available and parses list', () async {
+    test(
+      'getAvailableJobs calls GET /vendor/jobs/available and parses list',
+      () async {
+        adapter.enqueue(<String, dynamic>{
+          'data': <String, dynamic>{
+            'items': <Map<String, dynamic>>[
+              _bookingJson(id: 'BK1', status: 'pending'),
+              _bookingJson(id: 'BK2', status: 'pending'),
+            ],
+          },
+        });
+
+        final bookings = await repository.getAvailableJobs();
+
+        expect(adapter.lastOptions.method, 'GET');
+        expect(adapter.lastOptions.path, '/vendor/jobs/available');
+        expect(bookings.map((booking) => booking.id), <String>['BK1', 'BK2']);
+        expect(bookings.first.status.label, 'Pending');
+      },
+    );
+
+    test('maps the live API service name when its id is a UUID', () async {
       adapter.enqueue(<String, dynamic>{
-        'data': <String, dynamic>{
-          'items': <Map<String, dynamic>>[
-            _bookingJson(id: 'BK1', status: 'pending'),
-            _bookingJson(id: 'BK2', status: 'pending'),
-          ],
-        },
+        'items': <Map<String, dynamic>>[
+          <String, dynamic>{
+            ..._bookingJson(id: 'BK-appliance', status: 'pending'),
+            'categoryId': null,
+            'service': <String, dynamic>{
+              'id': '6e5d4c3b-aaaa-4b1c-8d2e-3f4a5b6c7d8e',
+              'name': 'Appliance Repair',
+            },
+            'scheduledAt': '2026-10-18T10:30:00.000Z',
+          },
+        ],
       });
 
-      final bookings = await repository.getAvailableJobs();
+      final booking = (await repository.getAvailableJobs()).single;
 
-      expect(adapter.lastOptions.method, 'GET');
-      expect(adapter.lastOptions.path, '/vendor/jobs/available');
-      expect(bookings.map((booking) => booking.id), <String>['BK1', 'BK2']);
-      expect(bookings.first.status.label, 'Pending');
+      expect(booking.skill.id, 'appliance');
+      expect(booking.skill.title, 'Appliance repair');
     });
 
     test('getBookingDetails calls GET /vendor/bookings/{id}', () async {

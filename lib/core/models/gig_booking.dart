@@ -15,8 +15,7 @@ enum GigBookingStatus {
   final String label;
 
   bool get isActive =>
-      this == GigBookingStatus.assigned ||
-      this == GigBookingStatus.inProgress;
+      this == GigBookingStatus.assigned || this == GigBookingStatus.inProgress;
 }
 
 enum JobNextStep {
@@ -59,7 +58,8 @@ class CompletionImage {
       id: json['id']?.toString() ?? '',
       url: json['url']?.toString() ?? '',
       bookingId: json['bookingId']?.toString() ?? '',
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),
     );
   }
@@ -71,9 +71,7 @@ class JobActions {
   final bool canCollectPayment;
 
   factory JobActions.fromJson(Map<String, dynamic> json) {
-    return JobActions(
-      canCollectPayment: json['canCollectPayment'] == true,
-    );
+    return JobActions(canCollectPayment: json['canCollectPayment'] == true);
   }
 }
 
@@ -135,9 +133,11 @@ class AddressInfo {
       state: json['state']?.toString() ?? '',
       pincode: json['pincode']?.toString() ?? json['zipCode']?.toString() ?? '',
       latitude: (json['latitude'] ?? json['lat'] ?? 0).toDouble(),
-      longitude: (json['longitude'] ?? json['lng'] ?? json['lon'] ?? 0).toDouble(),
+      longitude: (json['longitude'] ?? json['lng'] ?? json['lon'] ?? 0)
+          .toDouble(),
       landmark: json['landmark']?.toString() ?? '',
-      fullAddress: json['fullAddress']?.toString() ??
+      fullAddress:
+          json['fullAddress']?.toString() ??
           json['formatted']?.toString() ??
           '',
     );
@@ -168,6 +168,7 @@ class GigBooking {
     this.actions,
     this.customer,
     this.address,
+    this.startedAt,
   });
 
   final String id;
@@ -217,69 +218,115 @@ class GigBooking {
   /// Full address details (populated after accepting)
   final AddressInfo? address;
 
+  /// Server timestamp for jobs that have already started.
+  final DateTime? startedAt;
+
   /// What the customer paid in total (worker payout + platform fee).
   int get totalPaid => payout + platformFee;
 
   factory GigBooking.fromJson(Map<String, dynamic> json) {
-    final job = json['job'] as Map<String, dynamic>? ?? json;
-    final customer = _readMap(job, const ['customer', 'user', 'client']);
-    final address = _readMap(job, const ['address', 'location']);
-    final service = _readMap(job, const ['service', 'skill', 'category']);
-    final coordinates = _readCoordinates(job, address);
+    // Booking responses include a nested `job` object for workflow metadata
+    // (`nextStep`, `completionOtpVerified`). It is not the booking itself.
+    // Only use a nested object when the outer response has no booking id.
+    final nestedJob = json['job'] as Map<String, dynamic>?;
+    final booking = _readString(json, const ['id', '_id', 'bookingId']) != null
+        ? json
+        : nestedJob ?? json;
+    final workflow = identical(booking, json) ? nestedJob : null;
+    final customer = _readMap(booking, const ['customer', 'user', 'client']);
+    final address = _readMap(booking, const ['address', 'location']);
+    final service = _readMap(booking, const ['service', 'skill', 'category']);
+    final coordinates = _readCoordinates(booking, address);
     final skillId =
-        _readString(job, const ['skillId', 'serviceId', 'categoryId']) ??
-        _readString(service, const ['id', '_id', 'slug']);
+        _readString(booking, const ['skillId', 'serviceId', 'categoryId']) ??
+        _readString(service, const ['id', '_id', 'slug', 'categoryId']);
+    final serviceName = _readString(service, const [
+      'name',
+      'title',
+      'label',
+      'categoryName',
+    ]);
+    // `service.id` is a UUID in the live vendor API, while the app catalogue
+    // uses short ids (for example, `appliance`). Resolve the API service name
+    // before falling back so an Appliance booking is never shown as Civil.
+    final skill =
+        skillByReference(skillId) ??
+        skillByReference(serviceName) ??
+        skillByReference(
+          _readString(booking, const ['serviceName', 'categoryName']),
+        ) ??
+        skills.first;
 
-    final rawNextStep = _readString(job, const ['nextStep']);
-    final nextStep = rawNextStep != null ? JobNextStep.fromString(rawNextStep) : null;
+    final rawNextStep = _readString(workflow ?? booking, const ['nextStep']);
+    final nextStep = rawNextStep != null
+        ? JobNextStep.fromString(rawNextStep)
+        : null;
 
     return GigBooking(
-      id: _readString(job, const ['id', '_id', 'bookingId']) ?? '',
-      skill: skillById(skillId ?? ''),
+      id: _readString(booking, const ['id', '_id', 'bookingId']) ?? '',
+      skill: skill,
       customerName:
-          _readString(job, const ['customerName', 'clientName']) ??
+          _readString(booking, const ['customerName', 'clientName']) ??
           _readString(customer, const ['name', 'fullName']) ??
           'Customer',
       customerRating:
           _readDouble(customer, const ['rating', 'averageRating']) ??
-          _readDouble(job, const ['customerRating']) ??
+          _readDouble(booking, const ['customerRating']) ??
           5.0,
       addressLine:
-          _readString(job, const ['addressLine', 'address']) ??
-          _readString(address, const ['line1', 'fullAddress', 'formatted']) ??
+          _readString(booking, const ['addressLine', 'address']) ??
+          _readString(address, const [
+            'line',
+            'line1',
+            'fullAddress',
+            'formatted',
+          ]) ??
           '',
       landmark:
-          _readString(job, const ['landmark']) ??
+          _readString(booking, const ['landmark']) ??
           _readString(address, const ['landmark']) ??
           '',
       latitude: coordinates.$1,
       longitude: coordinates.$2,
-      distanceKm: _readDouble(job, const ['distanceKm', 'distance']) ?? 0,
-      etaMinutes: _readInt(job, const ['etaMinutes', 'eta']) ?? 0,
-      slotLabel: _slotLabel(job),
-      payout: _readInt(job, const ['payout', 'vendorPayout', 'earning']) ?? 0,
-      platformFee: _readInt(job, const ['platformFee', 'commission']) ?? 0,
-      notes: _readString(job, const ['notes', 'instructions']) ?? '',
+      distanceKm: _readDouble(booking, const ['distanceKm', 'distance']) ?? 0,
+      etaMinutes: _readInt(booking, const ['etaMinutes', 'eta']) ?? 0,
+      slotLabel: _slotLabel(booking),
+      payout:
+          _readInt(booking, const [
+            'payout',
+            'vendorPayout',
+            'earning',
+            'price',
+          ]) ??
+          0,
+      platformFee: _readInt(booking, const ['platformFee', 'commission']) ?? 0,
+      notes:
+          _readString(booking, const [
+            'notes',
+            'instructions',
+            'description',
+          ]) ??
+          '',
       durationLabel:
-          _readString(job, const ['durationLabel', 'duration']) ?? '60 min',
+          _readString(booking, const ['durationLabel', 'duration']) ?? '60 min',
       status: _parseStatus(
-        _readString(job, const ['status', 'bookingStatus']),
+        _readString(booking, const ['status', 'bookingStatus']),
       ),
       nextStep: nextStep,
-      completionOtpVerified: job['completionOtpVerified'] == true,
-      completionImages: (job['completionImages'] as List<dynamic>? ?? [])
+      completionOtpVerified:
+          (workflow ?? booking)['completionOtpVerified'] == true,
+      completionImages: (booking['completionImages'] as List<dynamic>? ?? [])
           .whereType<Map<String, dynamic>>()
           .map(CompletionImage.fromJson)
           .toList(growable: false),
-      actions: job['actions'] != null
-          ? JobActions.fromJson(job['actions'] as Map<String, dynamic>)
+      actions: booking['actions'] != null
+          ? JobActions.fromJson(booking['actions'] as Map<String, dynamic>)
           : null,
-      customer: customer.isNotEmpty
-          ? CustomerInfo.fromJson(customer)
-          : null,
-      address: address.isNotEmpty
-          ? AddressInfo.fromJson(address)
-          : null,
+      customer: customer.isNotEmpty ? CustomerInfo.fromJson(customer) : null,
+      address: address.isNotEmpty ? AddressInfo.fromJson(address) : null,
+      startedAt: DateTime.tryParse(
+        _readString(booking, const ['startedAt']) ?? '',
+      )?.toLocal(),
     );
   }
 
@@ -291,6 +338,7 @@ class GigBooking {
     JobActions? actions,
     CustomerInfo? customer,
     AddressInfo? address,
+    DateTime? startedAt,
   }) {
     return GigBooking(
       id: id,
@@ -310,11 +358,13 @@ class GigBooking {
       durationLabel: durationLabel,
       status: status ?? this.status,
       nextStep: nextStep ?? this.nextStep,
-      completionOtpVerified: completionOtpVerified ?? this.completionOtpVerified,
+      completionOtpVerified:
+          completionOtpVerified ?? this.completionOtpVerified,
       completionImages: completionImages ?? this.completionImages,
       actions: actions ?? this.actions,
       customer: customer ?? this.customer,
       address: address ?? this.address,
+      startedAt: startedAt ?? this.startedAt,
     );
   }
 }
@@ -376,8 +426,16 @@ String _slotLabel(Map<String, dynamic> json) {
     'slotLabel',
     'slot',
     'scheduledFor',
+    'scheduledAt',
   ]);
-  if (explicit != null) return explicit;
+  if (explicit != null) {
+    final date = DateTime.tryParse(explicit)?.toLocal();
+    if (date == null) return explicit;
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
   final windowStart = _readString(json, const ['windowStart', 'startTime']);
   final windowEnd = _readString(json, const ['windowEnd', 'endTime']);
   if (windowStart != null && windowEnd != null) {

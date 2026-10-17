@@ -13,72 +13,87 @@ import '../../../../shared/widgets/primary_button.dart';
 class EarningsPage extends StatelessWidget {
   const EarningsPage({super.key});
 
+  Future<void> _refresh() => AppState.instance.refreshBookings();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
-        child: ValueListenableBuilder<List<GigBooking>>(
-          valueListenable: AppState.instance.bookings,
-          builder: (context, bookings, _) {
-            final completed = bookings
-                .where((booking) => booking.status == GigBookingStatus.completed)
-                .toList();
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
-                  child: Column(
-                    children: [
-                      const _Header(),
-                      const SizedBox(height: 30),
-                      _BalanceSummary(total: AppState.instance.totalEarned),
-                      const SizedBox(height: 28),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _WalletAmountCard(
-                              title: 'Pending payout',
-                              amount: _formatAmount(
-                                AppState.instance.pendingPayout,
-                              ),
-                              accent: AppColors.brandGold,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _WalletAmountCard(
-                              title: 'Available balance',
-                              amount: _formatAmount(
-                                AppState.instance.availableBalance,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: completed.isEmpty
-                      ? const EmptyState(
-                          icon: LucideIcons.wallet,
-                          title: 'No payouts yet',
-                          subtitle: 'Complete a job to see your earnings here.',
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.fromLTRB(20, 30, 20, 112),
+        child: RefreshIndicator(
+          color: AppColors.brandForest,
+          onRefresh: _refresh,
+          child: ValueListenableBuilder<List<GigBooking>>(
+            valueListenable: AppState.instance.bookings,
+            builder: (context, bookings, _) {
+              final completed = bookings
+                  .where(
+                    (booking) => booking.status == GigBookingStatus.completed,
+                  )
+                  .toList();
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                    child: Column(
+                      children: [
+                        const _Header(),
+                        const SizedBox(height: 30),
+                        _BalanceSummary(total: AppState.instance.totalEarned),
+                        const SizedBox(height: 28),
+                        Row(
                           children: [
-                            const _SectionHeader(title: 'Payouts'),
-                            const SizedBox(height: 14),
-                            _PayoutsCard(bookings: completed),
+                            Expanded(
+                              child: _WalletAmountCard(
+                                title: 'Pending payout',
+                                amount: _formatAmount(
+                                  AppState.instance.pendingPayout,
+                                ),
+                                accent: AppColors.brandGold,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _WalletAmountCard(
+                                title: 'Available balance',
+                                amount: _formatAmount(
+                                  AppState.instance.availableBalance,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                ),
-              ],
-            );
-          },
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: completed.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(height: 72),
+                              EmptyState(
+                                icon: LucideIcons.wallet,
+                                title: 'No payouts yet',
+                                subtitle:
+                                    'Complete a job to see your earnings here.',
+                              ),
+                            ],
+                          )
+                        : ListView(
+                            padding: const EdgeInsets.fromLTRB(20, 30, 20, 112),
+                            children: [
+                              const _SectionHeader(title: 'Payouts'),
+                              const SizedBox(height: 14),
+                              _PayoutsCard(bookings: completed),
+                            ],
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -314,16 +329,16 @@ class _PayoutRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 Text(
-                   booking.skill.title,
-                   maxLines: 1,
-                   overflow: TextOverflow.ellipsis,
-                   style: const TextStyle(
-                     color: AppColors.brandForest,
-                     fontSize: 15,
-                     fontWeight: FontWeight.w700,
-                   ),
-                 ),
+                Text(
+                  booking.skill.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   booking.slotLabel,

@@ -1,8 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/gig_booking.dart'
-    show GigBooking, GigBookingStatus, CompletionImage, JobNextStep;
+import '../models/gig_booking.dart' show GigBooking, GigBookingStatus;
 import '../models/gig_worker_profile.dart';
 import '../models/job_session.dart';
 import '../../features/vendor/data/vendor_repository.dart';
@@ -18,9 +17,8 @@ class AppState {
   AppState._();
   static final AppState instance = AppState._();
 
-  final ValueNotifier<GigWorkerProfile> profile = ValueNotifier<GigWorkerProfile>(
-    const GigWorkerProfile(),
-  );
+  final ValueNotifier<GigWorkerProfile> profile =
+      ValueNotifier<GigWorkerProfile>(const GigWorkerProfile());
 
   final ValueNotifier<List<GigBooking>> bookings =
       ValueNotifier<List<GigBooking>>(<GigBooking>[]);
@@ -40,25 +38,31 @@ class AppState {
 
   /// Bookings still swipable in the feed (PENDING, MATCHING, AWAITING_PAYMENT).
   List<GigBooking> get pendingBookings => bookings.value
-      .where((booking) =>
-          booking.status == GigBookingStatus.pending ||
-          booking.status == GigBookingStatus.matching ||
-          booking.status == GigBookingStatus.awaitingPayment)
+      .where(
+        (booking) =>
+            booking.status == GigBookingStatus.pending ||
+            booking.status == GigBookingStatus.matching ||
+            booking.status == GigBookingStatus.awaitingPayment,
+      )
       .toList();
 
   /// Everything else: active, completed, declined, cancelled.
   List<GigBooking> get historyBookings => bookings.value
-      .where((booking) =>
-          booking.status != GigBookingStatus.pending &&
-          booking.status != GigBookingStatus.matching &&
-          booking.status != GigBookingStatus.awaitingPayment)
+      .where(
+        (booking) =>
+            booking.status != GigBookingStatus.pending &&
+            booking.status != GigBookingStatus.matching &&
+            booking.status != GigBookingStatus.awaitingPayment,
+      )
       .toList();
 
   /// Earnings of jobs currently being worked (not yet paid out).
   int get pendingPayout => bookings.value
-      .where((booking) =>
-          booking.status == GigBookingStatus.assigned ||
-          booking.status == GigBookingStatus.inProgress)
+      .where(
+        (booking) =>
+            booking.status == GigBookingStatus.assigned ||
+            booking.status == GigBookingStatus.inProgress,
+      )
       .fold(0, (sum, booking) => sum + booking.payout);
 
   /// Earnings of completed jobs — moved here on completion.
@@ -108,13 +112,26 @@ class AppState {
       isLoading.value = true;
       errorMessage.value = null;
       final jobs = await _repo!.getAvailableJobs(page: page, limit: limit);
+      final vendorSkillIds = profile.value.skills
+          .map((skill) => skill.id)
+          .toSet();
+      // The current API deliberately returns every open job, irrespective of a
+      // vendor's services or city. Keep the feed scoped to the services the
+      // signed-in vendor has declared until server-side matching is enabled.
+      final matchingJobs = vendorSkillIds.isEmpty
+          ? jobs
+          : jobs.where((job) => vendorSkillIds.contains(job.skill.id)).toList();
       // Replace only pending bookings, keep history
       final current = bookings.value;
-      final history = current.where((b) =>
-          b.status != GigBookingStatus.pending &&
-          b.status != GigBookingStatus.matching &&
-          b.status != GigBookingStatus.awaitingPayment).toList();
-      bookings.value = [...jobs, ...history];
+      final history = current
+          .where(
+            (b) =>
+                b.status != GigBookingStatus.pending &&
+                b.status != GigBookingStatus.matching &&
+                b.status != GigBookingStatus.awaitingPayment,
+          )
+          .toList();
+      bookings.value = [...matchingJobs, ...history];
     } catch (e) {
       errorMessage.value = 'Failed to load jobs: $e';
     } finally {
@@ -139,11 +156,22 @@ class AppState {
         limit: limit,
       );
       bookings.value = jobs;
+      if (scope != 'past') {
+        _restoreActiveJob(jobs);
+      }
     } catch (e) {
       errorMessage.value = 'Failed to load jobs: $e';
     } finally {
       isLoading.value = false;
     }
+  }
+
+  /// Reloads the profile, assigned jobs and open jobs in the order required
+  /// for service filtering. Used by pull-to-refresh on job-based tabs.
+  Future<void> refreshBookings() async {
+    await loadProfile();
+    await loadMyJobs();
+    await loadAvailableJobs();
   }
 
   Future<void> acceptBooking(GigBooking booking) async {
@@ -153,7 +181,11 @@ class AppState {
       errorMessage.value = null;
       final accepted = await _repo!.acceptJob(booking.id);
       _replaceBooking(accepted);
-      activeJob.value = JobSession(booking: accepted, phase: JobPhase.arrived, arrivedAt: DateTime.now());
+      activeJob.value = JobSession(
+        booking: accepted,
+        phase: JobPhase.arrived,
+        arrivedAt: DateTime.now(),
+      );
     } catch (e) {
       errorMessage.value = 'Failed to accept job: $e';
       rethrow;
@@ -224,7 +256,10 @@ class AppState {
     try {
       isLoading.value = true;
       errorMessage.value = null;
-      final updated = await _repo!.uploadCompletionImages(job.booking.id, images);
+      final updated = await _repo!.uploadCompletionImages(
+        job.booking.id,
+        images,
+      );
       _replaceBooking(updated);
       activeJob.value = job.copyWith(
         booking: updated,
@@ -265,9 +300,7 @@ class AppState {
     final job = activeJob.value;
     if (job == null) return;
     // API doesn't have cancel endpoint for vendor, just update local state
-    _replaceBooking(
-      job.booking.copyWith(status: GigBookingStatus.cancelled),
-    );
+    _replaceBooking(job.booking.copyWith(status: GigBookingStatus.cancelled));
     activeJob.value = null;
   }
 
@@ -315,7 +348,11 @@ class AppState {
   void acceptBookingLocal(GigBooking booking) {
     final accepted = booking.copyWith(status: GigBookingStatus.assigned);
     _replaceBooking(accepted);
-    activeJob.value = JobSession(booking: accepted, phase: JobPhase.arrived, arrivedAt: DateTime.now());
+    activeJob.value = JobSession(
+      booking: accepted,
+      phase: JobPhase.arrived,
+      arrivedAt: DateTime.now(),
+    );
   }
 
   void startJobLocal(String otp) {
@@ -359,11 +396,11 @@ class AppState {
 
   Future<void> initialize(VendorRepository repo) async {
     _setRepo(repo);
-    await Future.wait([
-      loadProfile(),
-      loadMyJobs(scope: 'upcoming'),
-      loadAvailableJobs(),
-    ]);
+    // Available jobs are filtered by profile skills and merged with current
+    // assignments, so this must not race with either request.
+    await loadProfile();
+    await loadMyJobs(scope: 'upcoming');
+    await loadAvailableJobs();
   }
 
   // ------------------------------------------------------------------
@@ -386,5 +423,35 @@ class AppState {
       list.insert(0, updated);
     }
     bookings.value = list;
+  }
+
+  /// [activeJob] is in-memory only, so reconstruct it from the server after
+  /// an app restart. Prefer an in-progress booking because it is further along
+  /// than an assigned one and is the only job that can be continued.
+  void _restoreActiveJob(List<GigBooking> jobs) {
+    GigBooking? active;
+    for (final booking in jobs) {
+      if (booking.status == GigBookingStatus.inProgress) {
+        active = booking;
+        break;
+      }
+      if (active == null && booking.status == GigBookingStatus.assigned) {
+        active = booking;
+      }
+    }
+
+    if (active == null) {
+      activeJob.value = null;
+      return;
+    }
+
+    final isInProgress = active.status == GigBookingStatus.inProgress;
+    activeJob.value = JobSession(
+      booking: active,
+      phase: isInProgress ? JobPhase.inProgress : JobPhase.arrived,
+      arrivedAt: isInProgress ? null : DateTime.now(),
+      startedAt: isInProgress ? (active.startedAt ?? DateTime.now()) : null,
+      uploadedImages: active.completionImages,
+    );
   }
 }

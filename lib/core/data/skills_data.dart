@@ -70,3 +70,35 @@ Skill skillById(String id) {
   }
   return skills.first;
 }
+
+/// Resolves either the app's short service id or the display name returned by
+/// the API. The API currently returns a UUID in `service.id`, so callers must
+/// also consider `service.name` before choosing a fallback.
+Skill? skillByReference(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+
+  final normalized = value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  for (final skill in skills) {
+    final id = skill.id.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final title = skill.title.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
+    if (normalized == id || normalized == title) return skill;
+  }
+
+  // API catalogue names are not guaranteed to match the partner-app labels.
+  if (normalized.contains('appliance')) return skills[7];
+  if (normalized.contains('plumb')) return skills[1];
+  if (normalized.contains('electric')) return skills[2];
+  if (normalized.contains('paint')) return skills[3];
+  if (normalized.contains('carpent')) return skills[4];
+  if (normalized.contains('inspection')) return skills[5];
+  if (normalized == 'ac' || normalized.contains('aircondition')) {
+    return skills[6];
+  }
+  if (normalized.contains('civil') || normalized.contains('mason')) {
+    return skills[0];
+  }
+  return null;
+}

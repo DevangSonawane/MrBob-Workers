@@ -128,9 +128,24 @@ List<Skill> _parseSkills(Object? rawSkills) {
                   'slug',
                 ])
               : null;
-          return skillById(nestedId ?? id);
+          final name = _readString(raw, const [
+            'name',
+            'title',
+            'label',
+            'categoryName',
+          ]);
+          final nestedName = raw['category'] is Map<String, dynamic>
+              ? _readString(raw['category'] as Map<String, dynamic>, const [
+                  'name',
+                  'title',
+                  'label',
+                ])
+              : null;
+          return skillByReference(nestedId ?? id) ??
+              skillByReference(nestedName ?? name) ??
+              skillById(id);
         }
-        return skillById(raw.toString());
+        return skillByReference(raw.toString()) ?? skillById(raw.toString());
       })
       .toList(growable: false);
 }

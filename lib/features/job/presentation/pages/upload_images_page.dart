@@ -12,6 +12,7 @@ import '../../../../core/models/job_session.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
+import '../../../../shared/widgets/authenticated_image.dart';
 import 'job_complete_page.dart';
 
 /// Upload photos of completed work page.
@@ -38,9 +39,9 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximum 5 photos allowed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Maximum 5 photos allowed')));
       return;
     }
 
@@ -54,18 +55,17 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick images: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to pick images: $e')));
       }
     }
   }
 
   Future<void> _takePhoto() async {
     if (_selectedImages.length >= 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Maximum 5 photos allowed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Maximum 5 photos allowed')));
       return;
     }
 
@@ -78,9 +78,8 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to take photo: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to take photo: $e')));
       }
     }
   }
@@ -103,20 +102,26 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
     try {
       final multipartFiles = <MultipartFile>[];
       for (final image in _selectedImages) {
-        multipartFiles.add(await MultipartFile.fromFile(
-          image.path,
-          filename: 'completion_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(10000)}.jpg',
-        ));
+        multipartFiles.add(
+          await MultipartFile.fromFile(
+            image.path,
+            filename:
+                'completion_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(10000)}.jpg',
+          ),
+        );
       }
 
       await AppState.instance.uploadCompletionImages(multipartFiles);
+      // Uploading photos is only the penultimate step. The backend keeps the
+      // booking IN_PROGRESS until this explicit completion call succeeds.
+      await AppState.instance.completeJob();
       if (!mounted) return;
       _goToCompleteOnce();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload images: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to upload images: $e')));
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -137,6 +142,7 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
 
   void _popOnce() {
     if (_popped || !mounted) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _popped = true;
     Navigator.pop(context);
   }
@@ -150,18 +156,24 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              color: AppColors.brandForest, size: 20),
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: AppColors.brandForest,
+            size: 20,
+          ),
           onPressed: () {
             AppHaptics.press();
             Navigator.pop(context);
           },
         ),
-        title: const Text('Upload photos',
-            style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Upload photos',
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
@@ -170,14 +182,14 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
           child: ValueListenableBuilder<JobSession?>(
             valueListenable: AppState.instance.activeJob,
             builder: (context, session, _) {
-              if (session == null ||
-                  session.booking.id != widget.booking.id) {
+              if (session == null || session.booking.id != widget.booking.id) {
                 WidgetsBinding.instance.addPostFrameCallback((_) => _popOnce());
                 return const SizedBox.shrink();
               }
               if (session.phase == JobPhase.completed) {
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _goToCompleteOnce());
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _goToCompleteOnce(),
+                );
                 return const SizedBox.shrink();
               }
 
@@ -187,9 +199,13 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                     child: ListView(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                       children: [
-                        const Text('Step 4 of 4 · Upload photos',
-                            style: TextStyle(
-                                color: AppColors.mutedText, fontSize: 12)),
+                        const Text(
+                          'Step 4 of 4 · Upload photos',
+                          style: TextStyle(
+                            color: AppColors.mutedText,
+                            fontSize: 12,
+                          ),
+                        ),
                         const SizedBox(height: 6),
                         _ThinBar(fraction: 1.0),
                         const SizedBox(height: 12),
@@ -207,23 +223,32 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                             children: [
                               Row(
                                 children: [
-                                  const Text('Photos of finished work',
-                                      style: TextStyle(
-                                          color: AppColors.brandForest,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800)),
+                                  const Text(
+                                    'Photos of finished work',
+                                    style: TextStyle(
+                                      color: AppColors.brandForest,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
                                   const Spacer(),
-                                  Text('${_selectedImages.length}/5',
-                                      style: const TextStyle(
-                                          color: AppColors.mutedText,
-                                          fontSize: 13)),
+                                  Text(
+                                    '${_selectedImages.length}/5',
+                                    style: const TextStyle(
+                                      color: AppColors.mutedText,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 4),
                               const Text(
-                                  'Upload 1-5 photos (JPEG, PNG, WebP, max 5MB each)',
-                                  style: TextStyle(
-                                      color: AppColors.mutedText, fontSize: 12)),
+                                'Upload 1-5 photos (JPEG, PNG, WebP, max 5MB each)',
+                                style: TextStyle(
+                                  color: AppColors.mutedText,
+                                  fontSize: 12,
+                                ),
+                              ),
                               const SizedBox(height: 16),
                               if (_selectedImages.isNotEmpty) ...[
                                 SizedBox(
@@ -235,9 +260,9 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                                         const SizedBox(width: 10),
                                     itemBuilder: (context, index) =>
                                         _ImageThumbnail(
-                                      image: _selectedImages[index],
-                                      onRemove: () => _removeImage(index),
-                                    ),
+                                          image: _selectedImages[index],
+                                          onRemove: () => _removeImage(index),
+                                        ),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
@@ -266,11 +291,14 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                         ),
                         const SizedBox(height: 12),
                         if (widget.booking.completionImages.isNotEmpty) ...[
-                          const Text('Previously uploaded',
-                              style: TextStyle(
-                                  color: AppColors.mutedText,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600)),
+                          const Text(
+                            'Previously uploaded',
+                            style: TextStyle(
+                              color: AppColors.mutedText,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           SizedBox(
                             height: 80,
@@ -281,8 +309,9 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                                   const SizedBox(width: 10),
                               itemBuilder: (context, index) =>
                                   _ExistingImageThumbnail(
-                                image: widget.booking.completionImages[index],
-                              ),
+                                    image:
+                                        widget.booking.completionImages[index],
+                                  ),
                             ),
                           ),
                         ],
@@ -290,8 +319,7 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                     ),
                   ),
                   Padding(
-                    padding:
-                        EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomInset),
+                    padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomInset),
                     child: GestureDetector(
                       onTap: _isUploading ? null : _uploadAndContinue,
                       child: Container(
@@ -312,11 +340,14 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : const Text('Continue to complete',
+                            : const Text(
+                                'Continue to complete',
                                 style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700)),
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -374,28 +405,40 @@ class _JobLine extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: booking.skill.color, shape: BoxShape.circle),
+              color: booking.skill.color,
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
-            child: Icon(booking.skill.icon,
-                color: AppColors.brandForest, size: 19),
+            child: Icon(
+              booking.skill.icon,
+              color: AppColors.brandForest,
+              size: 19,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(booking.skill.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.brandForest,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
-                Text('${booking.customerName} · ${booking.slotLabel}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.mutedText, fontSize: 12)),
+                Text(
+                  booking.skill.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${booking.customerName} · ${booking.slotLabel}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.mutedText,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -406,10 +449,7 @@ class _JobLine extends StatelessWidget {
 }
 
 class _ImageThumbnail extends StatelessWidget {
-  const _ImageThumbnail({
-    required this.image,
-    required this.onRemove,
-  });
+  const _ImageThumbnail({required this.image, required this.onRemove});
 
   final XFile image;
   final VoidCallback onRemove;
@@ -441,8 +481,7 @@ class _ImageThumbnail extends StatelessWidget {
                 color: Colors.black54,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.x,
-                  size: 14, color: Colors.white),
+              child: const Icon(LucideIcons.x, size: 14, color: Colors.white),
             ),
           ),
         ),
@@ -458,17 +497,11 @@ class _ExistingImageThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AuthenticatedImage(
       width: 80,
       height: 80,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.borderSubtle),
-        image: DecorationImage(
-          image: NetworkImage(image.url),
-          fit: BoxFit.cover,
-        ),
-      ),
+      path: image.url,
+      borderRadius: BorderRadius.circular(10),
     );
   }
 }
@@ -499,11 +532,14 @@ class _ImageSourceButton extends StatelessWidget {
           children: [
             Icon(icon, size: 18, color: AppColors.brandForest),
             const SizedBox(width: 8),
-            Text(label,
-                style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.brandForest,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

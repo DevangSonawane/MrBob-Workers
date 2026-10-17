@@ -14,38 +14,45 @@ import '../../../skills/presentation/pages/skills_select_page.dart';
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
+  Future<void> _refresh() => AppState.instance.loadProfile();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       body: SafeArea(
         bottom: false,
-        child: ValueListenableBuilder<GigWorkerProfile>(
-          valueListenable: AppState.instance.profile,
-          builder: (context, profile, _) {
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
-              children: [
-                Text(
-                  'Profile',
-                  style: TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 23,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.4,
+        child: RefreshIndicator(
+          color: AppColors.brandForest,
+          onRefresh: _refresh,
+          child: ValueListenableBuilder<GigWorkerProfile>(
+            valueListenable: AppState.instance.profile,
+            builder: (context, profile, _) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 120),
+                children: [
+                  Text(
+                    'Profile',
+                    style: TextStyle(
+                      color: AppColors.brandForest,
+                      fontSize: 23,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 26),
-                _IdentityCard(profile: profile),
-                const SizedBox(height: 20),
-                _SkillsCard(profile: profile),
-                const SizedBox(height: 20),
-                _DocumentsCard(profile: profile),
-                const SizedBox(height: 32),
-                const _SignOut(),
-              ],
-            );
-          },
+                  const SizedBox(height: 26),
+                  _IdentityCard(profile: profile),
+                  const SizedBox(height: 20),
+                  _SkillsCard(profile: profile),
+                  const SizedBox(height: 20),
+                  _DocumentsCard(profile: profile),
+                  const SizedBox(height: 32),
+                  const _SignOut(),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -222,7 +229,10 @@ class _SkillsCard extends StatelessWidget {
                   onTap: () => _openPicker(context),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.brandForest.withValues(alpha: 0.07),
                       borderRadius: BorderRadius.circular(999),
@@ -341,7 +351,10 @@ class _DocumentsCard extends StatelessWidget {
               )
             else
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8F8F8),
                   borderRadius: BorderRadius.circular(12),

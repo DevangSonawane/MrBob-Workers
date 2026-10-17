@@ -56,8 +56,7 @@ void main() {
     });
 
     test('copyWith updates status only', () {
-      final updated =
-          booking.copyWith(status: GigBookingStatus.assigned);
+      final updated = booking.copyWith(status: GigBookingStatus.assigned);
       expect(updated.status, GigBookingStatus.assigned);
       expect(updated.payout, 399);
       expect(updated.customerName, 'Test User');
@@ -69,6 +68,23 @@ void main() {
       expect(GigBookingStatus.assigned.isActive, isTrue);
       expect(GigBookingStatus.completed.isActive, isFalse);
       expect(GigBookingStatus.cancelled.isActive, isFalse);
+    });
+
+    test('keeps booking fields when job contains workflow metadata', () {
+      final accepted = GigBooking.fromJson(<String, dynamic>{
+        'id': 'accepted-booking-id',
+        'status': 'ASSIGNED',
+        'service': <String, dynamic>{'name': 'Appliance Repair'},
+        'job': <String, dynamic>{
+          'nextStep': 'START',
+          'completionOtpVerified': false,
+        },
+      });
+
+      expect(accepted.id, 'accepted-booking-id');
+      expect(accepted.status, GigBookingStatus.assigned);
+      expect(accepted.skill.id, 'appliance');
+      expect(accepted.nextStep, JobNextStep.start);
     });
   });
 
@@ -88,12 +104,12 @@ void main() {
     });
 
     test('pan regex contract: AAAAA9999A', () {
-      expect(RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('ABCDE1234F'),
-          isTrue);
-      expect(RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('abcde1234f'),
-          isFalse);
-      expect(RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('ABCDE1234'),
-          isFalse);
+      expect(RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('ABCDE1234F'), isTrue);
+      expect(
+        RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('abcde1234f'),
+        isFalse,
+      );
+      expect(RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]$').hasMatch('ABCDE1234'), isFalse);
     });
   });
 

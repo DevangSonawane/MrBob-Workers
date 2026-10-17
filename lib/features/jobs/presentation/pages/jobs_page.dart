@@ -18,43 +18,54 @@ import '../../../job/presentation/pages/in_progress_page.dart';
 class JobsPage extends StatelessWidget {
   const JobsPage({super.key});
 
+  Future<void> _refresh() => AppState.instance.refreshBookings();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
-        child: ValueListenableBuilder<JobSession?>(
-          valueListenable: AppState.instance.activeJob,
-          builder: (context, activeJob, _) {
-            return ValueListenableBuilder<List<GigBooking>>(
-              valueListenable: AppState.instance.bookings,
-              builder: (context, bookings, _) {
-                final history = AppState.instance.historyBookings;
-                if (activeJob == null && history.isEmpty) {
-                  return const EmptyState(
-                    icon: LucideIcons.briefcase,
-                    title: 'No jobs yet',
-                    subtitle:
-                        'Accept a booking from the Home tab to get started.',
-                  );
-                }
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
-                  children: [
-                    const _Header(),
-                    const SizedBox(height: 24),
-                    if (activeJob != null &&
-                        activeJob.phase != JobPhase.completed) ...[
-                      _ActiveJobCard(session: activeJob),
-                      const SizedBox(height: 28),
+        child: RefreshIndicator(
+          color: AppColors.brandForest,
+          onRefresh: _refresh,
+          child: ValueListenableBuilder<JobSession?>(
+            valueListenable: AppState.instance.activeJob,
+            builder: (context, activeJob, _) {
+              return ValueListenableBuilder<List<GigBooking>>(
+                valueListenable: AppState.instance.bookings,
+                builder: (context, bookings, _) {
+                  final history = AppState.instance.historyBookings;
+                  if (activeJob == null && history.isEmpty) {
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        EmptyState(
+                          icon: LucideIcons.briefcase,
+                          title: 'No jobs yet',
+                          subtitle: 'Accept a booking from the Home tab to get started.',
+                        ),
+                      ],
+                    );
+                  }
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 112),
+                    children: [
+                      const _Header(),
+                      const SizedBox(height: 24),
+                      if (activeJob != null &&
+                          activeJob.phase != JobPhase.completed) ...[
+                        _ActiveJobCard(session: activeJob),
+                        const SizedBox(height: 28),
+                      ],
+                      _HistorySection(bookings: history),
                     ],
-                    _HistorySection(bookings: history),
-                  ],
-                );
-              },
-            );
-          },
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -113,16 +124,16 @@ class _ActiveJobCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                     Text(
-                       booking.skill.title,
-                       maxLines: 1,
-                       overflow: TextOverflow.ellipsis,
-                       style: const TextStyle(
-                         color: AppColors.brandForest,
-                         fontSize: 16,
-                         fontWeight: FontWeight.w800,
-                       ),
-                     ),
+                    Text(
+                      booking.skill.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.brandForest,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       booking.customerName,
@@ -227,23 +238,23 @@ class _ActiveJobCard extends StatelessWidget {
 }
 
 String _ctaLabel(JobPhase phase) => switch (phase) {
-      JobPhase.enroute || JobPhase.arrived => 'View booking',
-      JobPhase.otpPending => 'Verify OTP',
-      JobPhase.otpVerified => 'Start working',
-      JobPhase.uploadingImages => 'Upload photos',
-      JobPhase.inProgress => 'Continue working',
-      JobPhase.completed => 'View details',
-    };
+  JobPhase.enroute || JobPhase.arrived => 'View booking',
+  JobPhase.otpPending => 'Verify OTP',
+  JobPhase.otpVerified => 'Start working',
+  JobPhase.uploadingImages => 'Upload photos',
+  JobPhase.inProgress => 'Continue working',
+  JobPhase.completed => 'View details',
+};
 
 (String, Color) _phaseStyle(JobPhase phase) => switch (phase) {
-      JobPhase.enroute => ('En route', _amber),
-      JobPhase.arrived => ('Arrived', _blue),
-      JobPhase.otpPending => ('OTP pending', _orange),
-      JobPhase.otpVerified => ('OTP verified', _green),
-      JobPhase.uploadingImages => ('Uploading', _orange),
-      JobPhase.inProgress => ('In progress', _blue),
-      JobPhase.completed => ('Completed', _green),
-    };
+  JobPhase.enroute => ('En route', _amber),
+  JobPhase.arrived => ('Arrived', _blue),
+  JobPhase.otpPending => ('OTP pending', _orange),
+  JobPhase.otpVerified => ('OTP verified', _green),
+  JobPhase.uploadingImages => ('Uploading', _orange),
+  JobPhase.inProgress => ('In progress', _blue),
+  JobPhase.completed => ('Completed', _green),
+};
 
 class _PhaseChip extends StatelessWidget {
   const _PhaseChip({required this.phase});
@@ -341,16 +352,16 @@ class _HistoryRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                 Text(
-                   booking.skill.title,
-                   maxLines: 1,
-                   overflow: TextOverflow.ellipsis,
-                   style: const TextStyle(
-                     color: AppColors.brandForest,
-                     fontSize: 15,
-                     fontWeight: FontWeight.w700,
-                   ),
-                 ),
+                Text(
+                  booking.skill.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   booking.customerName,
@@ -425,14 +436,14 @@ class _StatusChip extends StatelessWidget {
 }
 
 Color _statusColor(GigBookingStatus status) => switch (status) {
-      GigBookingStatus.completed => _green,
-      GigBookingStatus.inProgress => _blue,
-      GigBookingStatus.assigned => _amber,
-      GigBookingStatus.cancelled => _red,
-      GigBookingStatus.pending => AppColors.mutedText,
-      GigBookingStatus.matching => AppColors.mutedText,
-      GigBookingStatus.awaitingPayment => AppColors.mutedText,
-    };
+  GigBookingStatus.completed => _green,
+  GigBookingStatus.inProgress => _blue,
+  GigBookingStatus.assigned => _amber,
+  GigBookingStatus.cancelled => _red,
+  GigBookingStatus.pending => AppColors.mutedText,
+  GigBookingStatus.matching => AppColors.mutedText,
+  GigBookingStatus.awaitingPayment => AppColors.mutedText,
+};
 
 const _green = Color(0xFF16A34A);
 const _blue = Color(0xFF2563EB);

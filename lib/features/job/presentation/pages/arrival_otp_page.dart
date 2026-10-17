@@ -57,15 +57,23 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
     _verify();
   }
 
-  void _verify() {
+  Future<void> _verify() async {
     if (_otpController.text.length != 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter all 4 digits')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Enter all 4 digits')));
       return;
     }
     AppHaptics.confirm();
-    AppState.instance.startJob(_otpController.text);
+    try {
+      await AppState.instance.startJob(_otpController.text);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not start the job. Please try again.'),
+        ),
+      );
+    }
     FocusScope.of(context).unfocus();
   }
 
@@ -81,6 +89,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
 
   void _popOnce() {
     if (_popped || !mounted) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _popped = true;
     Navigator.pop(context);
   }
@@ -94,18 +103,24 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft,
-              color: AppColors.brandForest, size: 20),
+          icon: const Icon(
+            LucideIcons.arrowLeft,
+            color: AppColors.brandForest,
+            size: 20,
+          ),
           onPressed: () {
             AppHaptics.press();
             Navigator.pop(context);
           },
         ),
-        title: const Text('Start job',
-            style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 16,
-                fontWeight: FontWeight.w700)),
+        title: const Text(
+          'Start job',
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.dark,
@@ -114,15 +129,15 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
           child: ValueListenableBuilder<JobSession?>(
             valueListenable: AppState.instance.activeJob,
             builder: (context, session, _) {
-              if (session == null ||
-                  session.booking.id != widget.booking.id) {
+              if (session == null || session.booking.id != widget.booking.id) {
                 WidgetsBinding.instance.addPostFrameCallback((_) => _popOnce());
                 return const SizedBox.shrink();
               }
               if (session.phase == JobPhase.inProgress ||
                   session.phase == JobPhase.completed) {
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _goToWorkOnce());
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => _goToWorkOnce(),
+                );
                 return const SizedBox.shrink();
               }
               final verified = session.phase == JobPhase.otpVerified;
@@ -140,7 +155,9 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                                 : 'Step 1 of 4 · Enter start code',
                             key: ValueKey<bool>(verified),
                             style: const TextStyle(
-                                color: AppColors.mutedText, fontSize: 12),
+                              color: AppColors.mutedText,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -152,8 +169,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeOut,
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
                           decoration: BoxDecoration(
                             color: verified
                                 ? const Color(0xFFF0FDF4)
@@ -162,7 +178,7 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                             border: Border.all(
                               color: verified
                                   ? const Color(0xFF1E8E3E)
-                                      .withValues(alpha: 0.45)
+                                        .withValues(alpha: 0.45)
                                   : AppColors.borderSubtle,
                               width: verified ? 1.4 : 1,
                             ),
@@ -173,13 +189,16 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                             switchOutCurve: Curves.easeIn,
                             transitionBuilder: (child, animation) =>
                                 FadeTransition(
-                              opacity: animation,
-                              child: ScaleTransition(
-                                  scale: animation, child: child),
-                            ),
+                                  opacity: animation,
+                                  child: ScaleTransition(
+                                    scale: animation,
+                                    child: child,
+                                  ),
+                                ),
                             child: verified
                                 ? _VerifiedContent(
-                                    key: const ValueKey('verified'))
+                                    key: const ValueKey('verified'),
+                                  )
                                 : _OtpContent(
                                     key: const ValueKey('otp'),
                                     controller: _otpController,
@@ -210,9 +229,10 @@ class _ArrivalOtpPageState extends State<ArrivalOtpPage> {
                             verified ? 'Start working' : 'Verify OTP',
                             key: ValueKey<bool>(verified),
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700),
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
@@ -277,28 +297,40 @@ class _JobLine extends StatelessWidget {
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-                color: booking.skill.color, shape: BoxShape.circle),
+              color: booking.skill.color,
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
-            child: Icon(booking.skill.icon,
-                color: AppColors.brandForest, size: 19),
+            child: Icon(
+              booking.skill.icon,
+              color: AppColors.brandForest,
+              size: 19,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(booking.skill.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.brandForest,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700)),
-                Text('${booking.customerName} · ${booking.slotLabel}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.mutedText, fontSize: 12)),
+                Text(
+                  booking.skill.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  '${booking.customerName} · ${booking.slotLabel}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.mutedText,
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -309,11 +341,12 @@ class _JobLine extends StatelessWidget {
 }
 
 class _OtpContent extends StatelessWidget {
-  const _OtpContent(
-      {super.key,
-      required this.controller,
-      required this.focusNode,
-      required this.onVerify});
+  const _OtpContent({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required this.onVerify,
+  });
 
   final TextEditingController controller;
   final FocusNode focusNode;
@@ -323,26 +356,34 @@ class _OtpContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Text('Ask customer for OTP',
-            style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 16,
-                fontWeight: FontWeight.w800)),
+        const Text(
+          'Ask customer for OTP',
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 4),
-        const Text('4-digit code on their booking screen.',
-            style:
-                TextStyle(color: AppColors.mutedText, fontSize: 13)),
+        const Text(
+          '4-digit code on their booking screen.',
+          style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+        ),
         const SizedBox(height: 16),
         OtpBoxes(
-            focusNode: focusNode,
-            controller: controller,
-            onCompleted: onVerify),
+          focusNode: focusNode,
+          controller: controller,
+          onCompleted: onVerify,
+        ),
         const SizedBox(height: 12),
-        const Text('Demo: 1234 · any 4 digits work',
-            style: TextStyle(
-                color: AppColors.mutedText,
-                fontSize: 12,
-                fontWeight: FontWeight.w500)),
+        const Text(
+          'Demo: 1234 · any 4 digits work',
+          style: TextStyle(
+            color: AppColors.mutedText,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -362,10 +403,7 @@ class _VerifiedContent extends StatelessWidget {
           curve: Curves.elasticOut,
           builder: (context, scale, child) => Transform.scale(
             scale: scale,
-            child: Opacity(
-              opacity: scale.clamp(0.0, 1.0),
-              child: child,
-            ),
+            child: Opacity(opacity: scale.clamp(0.0, 1.0), child: child),
           ),
           child: Container(
             width: 52,
@@ -375,21 +413,24 @@ class _VerifiedContent extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
-            child: const Icon(LucideIcons.check,
-                size: 26, color: Colors.white),
+            child: const Icon(LucideIcons.check, size: 26, color: Colors.white),
           ),
         ),
         const SizedBox(height: 10),
-        const Text('OTP verified',
-            style: TextStyle(
-                color: AppColors.brandForest,
-                fontSize: 16,
-                fontWeight: FontWeight.w800)),
+        const Text(
+          'OTP verified',
+          style: TextStyle(
+            color: AppColors.brandForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 4),
-        const Text('Customer confirmed. Press Start to begin.',
-            textAlign: TextAlign.center,
-            style:
-                TextStyle(color: AppColors.mutedText, fontSize: 13)),
+        const Text(
+          'Customer confirmed. Press Start to begin.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+        ),
       ],
     );
   }

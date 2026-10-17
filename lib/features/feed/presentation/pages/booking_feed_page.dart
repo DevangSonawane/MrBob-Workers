@@ -56,23 +56,30 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Accept this job instead?',
-              style: TextStyle(
-                  color: AppColors.brandForest,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Accept this job instead?',
+            style: TextStyle(
+              color: AppColors.brandForest,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           content: const Text(
-              'You have an active job. It will be cancelled.',
-              style: TextStyle(color: AppColors.mutedText, fontSize: 13.5)),
+            'You have an active job. It will be cancelled.',
+            style: TextStyle(color: AppColors.mutedText, fontSize: 13.5),
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Stay')),
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Stay'),
+            ),
             FilledButton(
               style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.brandForest),
+                backgroundColor: AppColors.brandForest,
+              ),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Accept'),
             ),
@@ -83,13 +90,26 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
       AppState.instance.cancelActiveJob();
     }
     setState(() => _isNavigating = true);
-    AppState.instance.acceptBooking(booking);
-    _focusIndex = 0;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => BookingDetailPage(booking: booking)),
-    );
-    if (mounted) setState(() => _isNavigating = false);
+    try {
+      await AppState.instance.acceptBooking(booking);
+      if (!mounted) return;
+      _focusIndex = 0;
+      final accepted = AppState.instance.activeJob.value?.booking ?? booking;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => BookingDetailPage(booking: accepted)),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not accept this job. Try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isNavigating = false);
+    }
   }
 
   void _declineBooking(List<GigBooking> pending, int index) {
@@ -128,22 +148,28 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => BookingDetailPage(booking: session.booking)),
+            builder: (_) => BookingDetailPage(booking: session.booking),
+          ),
         );
       case JobPhase.otpPending:
       case JobPhase.uploadingImages:
         Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (_) => ArrivalOtpPage(booking: session.booking)),
+            builder: (_) => ArrivalOtpPage(booking: session.booking),
+          ),
         );
       case JobPhase.inProgress:
         Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const InProgressPage()));
+          context,
+          MaterialPageRoute(builder: (_) => const InProgressPage()),
+        );
       case JobPhase.completed:
         break;
     }
   }
+
+  Future<void> _refresh() => AppState.instance.refreshBookings();
 
   String get _greeting {
     final h = DateTime.now().hour;
@@ -159,194 +185,220 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
-        child: ValueListenableBuilder<bool>(
-          valueListenable: AppState.instance.isOnline,
-          builder: (context, isOnline, child) {
-            return ValueListenableBuilder<JobSession?>(
-              valueListenable: AppState.instance.activeJob,
-              builder: (context, activeJob, _) {
-                return ValueListenableBuilder<List<GigBooking>>(
-                  valueListenable: AppState.instance.bookings,
-                  builder: (context, _, child) {
-                    final pending = AppState.instance.pendingBookings;
-                    final focus = pending.isEmpty
-                        ? null
-                        : pending[_focusIndex.clamp(0, pending.length - 1)];
-                    final rest = focus == null
-                        ? const <GigBooking>[]
-                        : pending.where((b) => b.id != focus.id).toList();
-                    return ListView(
-                      padding:
-                          EdgeInsets.fromLTRB(16, 10, 16, 100 + bottomInset),
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(_greeting,
+        child: RefreshIndicator(
+          color: AppColors.brandForest,
+          onRefresh: _refresh,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: AppState.instance.isOnline,
+            builder: (context, isOnline, child) {
+              return ValueListenableBuilder<JobSession?>(
+                valueListenable: AppState.instance.activeJob,
+                builder: (context, activeJob, _) {
+                  return ValueListenableBuilder<List<GigBooking>>(
+                    valueListenable: AppState.instance.bookings,
+                    builder: (context, _, child) {
+                      final pending = AppState.instance.pendingBookings;
+                      final focus = pending.isEmpty
+                          ? null
+                          : pending[_focusIndex.clamp(0, pending.length - 1)];
+                      final rest = focus == null
+                          ? const <GigBooking>[]
+                          : pending.where((b) => b.id != focus.id).toList();
+                      return ListView(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          10,
+                          16,
+                          100 + bottomInset,
+                        ),
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _greeting,
                                       style: const TextStyle(
-                                          color: AppColors.mutedText,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500)),
-                                  const SizedBox(height: 1),
-                                  ValueListenableBuilder(
-                                    valueListenable:
-                                        AppState.instance.profile,
-                                    builder: (context, profile, _) {
-                                      final name = profile.name.isEmpty
-                                          ? 'Partner'
-                                          : profile.name.split(' ').first;
-                                      return Text(name,
+                                        color: AppColors.mutedText,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 1),
+                                    ValueListenableBuilder(
+                                      valueListenable:
+                                          AppState.instance.profile,
+                                      builder: (context, profile, _) {
+                                        final name = profile.name.isEmpty
+                                            ? 'Partner'
+                                            : profile.name.split(' ').first;
+                                        return Text(
+                                          name,
                                           style: const TextStyle(
-                                              color: AppColors.brandForest,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: -0.3));
+                                            color: AppColors.brandForest,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.3,
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    isOnline ? 'Online' : 'Offline',
+                                    style: TextStyle(
+                                      color: isOnline
+                                          ? AppColors.brandForest
+                                          : AppColors.mutedText,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Switch.adaptive(
+                                    value: isOnline,
+                                    activeThumbColor: const Color(0xFF1E8E3E),
+                                    onChanged: (v) {
+                                      AppHaptics.confirm();
+                                      AppState.instance.isOnline.value = v;
                                     },
                                   ),
                                 ],
                               ),
-                            ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(isOnline ? 'Online' : 'Offline',
-                                    style: TextStyle(
-                                        color: isOnline
-                                            ? AppColors.brandForest
-                                            : AppColors.mutedText,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600)),
-                                const SizedBox(width: 6),
-                                Switch.adaptive(
-                                  value: isOnline,
-                                  activeThumbColor: const Color(0xFF1E8E3E),
-                                  onChanged: (v) {
-                                    AppHaptics.confirm();
-                                    AppState.instance.isOnline.value = v;
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        if (activeJob != null &&
-                            activeJob.phase != JobPhase.completed) ...[
-                          const SizedBox(height: 10),
-                          _ActiveJobRow(
-                            session: activeJob,
-                            onContinue: () => _continueJob(activeJob),
-                          ),
-                        ],
-                        const SizedBox(height: 14),
-                        if (!isOnline)
-                          const EmptyState(
-                            icon: LucideIcons.wifiOff,
-                            title: "You're offline",
-                            subtitle: 'Go online to receive requests.',
-                          )
-                        else if (focus == null)
-                          const EmptyState(
-                            icon: LucideIcons.inbox,
-                            title: 'No new requests',
-                            subtitle:
-                                "We'll notify you when one comes in.",
-                          )
-                        else ...[
-                          Row(
-                            children: [
-                              const Text('Best match',
-                                  style: TextStyle(
-                                      color: AppColors.brandForest,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800)),
-                              const SizedBox(width: 6),
-                              if (pending.length > 1)
-                                Text(
-                                    '${_focusIndex.clamp(0, pending.length - 1) + 1} of ${pending.length}',
-                                    style: const TextStyle(
-                                        color: AppColors.mutedText,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w500)),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          const Text('One at a time. No rush.',
-                              style: TextStyle(
-                                  color: AppColors.mutedText,
-                                  fontSize: 12.5)),
-                          const SizedBox(height: 10),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            transitionBuilder: (child, animation) =>
-                                FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0.06, 0),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
-                              ),
+                          if (activeJob != null &&
+                              activeJob.phase != JobPhase.completed) ...[
+                            const SizedBox(height: 10),
+                            _ActiveJobRow(
+                              session: activeJob,
+                              onContinue: () => _continueJob(activeJob),
                             ),
-                            child: JobRequestCard(
-                              key: ValueKey(focus.id),
-                              booking: focus,
-                              isTop: true,
-                              onAccept: () => _acceptBooking(focus),
-                              onDecline: () => _declineBooking(
-                                  pending,
-                                  pending.indexWhere(
-                                      (b) => b.id == focus.id)),
-                              onViewDetails: () => _openDetail(focus),
-                            ),
-                          ),
-                          if (rest.isNotEmpty) ...[
-                            const SizedBox(height: 14),
-                            Text('Up next · ${rest.length}',
-                                style: const TextStyle(
-                                    color: AppColors.mutedText,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 8),
-                            Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: AppColors.borderSubtle),
-                              ),
-                              child: Column(
-                                children: [
-                                  for (var i = 0;
-                                      i < rest.length;
-                                      i++) ...[
-                                    _WaitingRow(
-                                      booking: rest[i],
-                                      onTap: () => _focusJob(
-                                          rest[i].id, pending),
+                          ],
+                          const SizedBox(height: 14),
+                          if (!isOnline)
+                            const EmptyState(
+                              icon: LucideIcons.wifiOff,
+                              title: "You're offline",
+                              subtitle: 'Go online to receive requests.',
+                            )
+                          else if (focus == null)
+                            const EmptyState(
+                              icon: LucideIcons.inbox,
+                              title: 'No new requests',
+                              subtitle: "We'll notify you when one comes in.",
+                            )
+                          else ...[
+                            Row(
+                              children: [
+                                const Text(
+                                  'Best match',
+                                  style: TextStyle(
+                                    color: AppColors.brandForest,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                if (pending.length > 1)
+                                  Text(
+                                    '${_focusIndex.clamp(0, pending.length - 1) + 1} of ${pending.length}',
+                                    style: const TextStyle(
+                                      color: AppColors.mutedText,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    if (i != rest.length - 1)
-                                      const Divider(
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            const Text(
+                              'One at a time. No rush.',
+                              style: TextStyle(
+                                color: AppColors.mutedText,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (child, animation) =>
+                                  FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.06, 0),
+                                        end: Offset.zero,
+                                      ).animate(animation),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: JobRequestCard(
+                                key: ValueKey(focus.id),
+                                booking: focus,
+                                isTop: true,
+                                onAccept: () => _acceptBooking(focus),
+                                onDecline: () => _declineBooking(
+                                  pending,
+                                  pending.indexWhere((b) => b.id == focus.id),
+                                ),
+                                onViewDetails: () => _openDetail(focus),
+                              ),
+                            ),
+                            if (rest.isNotEmpty) ...[
+                              const SizedBox(height: 14),
+                              Text(
+                                'Up next · ${rest.length}',
+                                style: const TextStyle(
+                                  color: AppColors.mutedText,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppColors.borderSubtle,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    for (var i = 0; i < rest.length; i++) ...[
+                                      _WaitingRow(
+                                        booking: rest[i],
+                                        onTap: () =>
+                                            _focusJob(rest[i].id, pending),
+                                      ),
+                                      if (i != rest.length - 1)
+                                        const Divider(
                                           height: 1,
                                           indent: 12,
                                           endIndent: 12,
-                                          color:
-                                              AppColors.borderSubtle),
+                                          color: AppColors.borderSubtle,
+                                        ),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ],
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-          },
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -365,8 +417,7 @@ class _WaitingRow extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: Row(
           children: [
             Container(
@@ -377,38 +428,53 @@ class _WaitingRow extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: Icon(booking.skill.icon,
-                  size: 15, color: AppColors.brandForest),
+              child: Icon(
+                booking.skill.icon,
+                size: 15,
+                color: AppColors.brandForest,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(booking.skill.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.brandForest,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700)),
                   Text(
-                      '${booking.distanceKm.toStringAsFixed(1)} km · ${booking.slotLabel}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: AppColors.mutedText, fontSize: 11.5)),
+                    booking.skill.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.brandForest,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${booking.distanceKm.toStringAsFixed(1)} km · ${booking.slotLabel}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 11.5,
+                    ),
+                  ),
                 ],
               ),
             ),
-            Text('₹${booking.payout}',
-                style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              '₹${booking.payout}',
+              style: const TextStyle(
+                color: AppColors.brandForest,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(width: 4),
-            const Icon(LucideIcons.chevronRight,
-                size: 15, color: AppColors.mutedText),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 15,
+              color: AppColors.mutedText,
+            ),
           ],
         ),
       ),
@@ -439,45 +505,64 @@ class _ActiveJobRow extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text('Active job',
-                    style: TextStyle(
-                        color: AppColors.mutedText,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600)),
+                const Text(
+                  'Active job',
+                  style: TextStyle(
+                    color: AppColors.mutedText,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const Spacer(),
-                Text('₹${booking.payout}',
-                    style: const TextStyle(
-                        color: AppColors.brandForest,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  '₹${booking.payout}',
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(booking.skill.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: AppColors.brandForest,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700)),
-            Text(booking.addressLine,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: AppColors.mutedText, fontSize: 12.5)),
+            Text(
+              booking.skill.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.brandForest,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              booking.addressLine,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.mutedText,
+                fontSize: 12.5,
+              ),
+            ),
             const SizedBox(height: 8),
             _ThinProgress(phase: session.phase),
             const SizedBox(height: 8),
             Row(
               children: [
-                Text(_ctaLabel(session.phase),
-                    style: const TextStyle(
-                        color: AppColors.brandForest,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  _ctaLabel(session.phase),
+                  style: const TextStyle(
+                    color: AppColors.brandForest,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(width: 4),
-                const Icon(LucideIcons.arrowRight,
-                    size: 14, color: AppColors.brandForest),
+                const Icon(
+                  LucideIcons.arrowRight,
+                  size: 14,
+                  color: AppColors.brandForest,
+                ),
               ],
             ),
           ],
@@ -487,13 +572,13 @@ class _ActiveJobRow extends StatelessWidget {
   }
 
   String _ctaLabel(JobPhase phase) => switch (phase) {
-        JobPhase.enroute => 'Go to customer',
-        JobPhase.arrived || JobPhase.otpPending => 'Enter OTP',
-        JobPhase.otpVerified => 'Start work',
-        JobPhase.uploadingImages => 'Upload photos',
-        JobPhase.inProgress => 'Continue work',
-        JobPhase.completed => 'View details',
-      };
+    JobPhase.enroute => 'Go to customer',
+    JobPhase.arrived || JobPhase.otpPending => 'Enter OTP',
+    JobPhase.otpVerified => 'Start work',
+    JobPhase.uploadingImages => 'Upload photos',
+    JobPhase.inProgress => 'Continue work',
+    JobPhase.completed => 'View details',
+  };
 }
 
 class _ThinProgress extends StatelessWidget {
