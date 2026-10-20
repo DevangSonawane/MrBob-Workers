@@ -576,7 +576,7 @@ class _SignOut extends StatelessWidget {
   Future<void> _signOut(BuildContext context) async {
     AppHaptics.confirm();
     AppState.instance.signOut();
-    await OnboardingRepository.instance.clearTokens();
+    await OnboardingRepository.instance.signOut();
     if (!context.mounted) return;
     Navigator.pushReplacement(
       context,

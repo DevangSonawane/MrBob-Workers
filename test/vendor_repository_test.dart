@@ -10,14 +10,18 @@ import 'package:mrbob_partner/core/data/storage_service.dart';
 import 'package:mrbob_partner/features/vendor/data/vendor_repository.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('VendorRepository', () {
     late _RecordingAdapter adapter;
     late VendorRepository repository;
 
     setUp(() {
+      final futureExpiry = DateTime.now().add(const Duration(hours: 1)).toIso8601String();
       FlutterSecureStorage.setMockInitialValues(<String, String>{
         'access_token': 'vendor-token',
         'refresh_token': 'refresh-token',
+        'access_token_expires_at': futureExpiry,
       });
       adapter = _RecordingAdapter();
       final storage = StorageService(const FlutterSecureStorage());

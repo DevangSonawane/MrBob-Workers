@@ -6,6 +6,7 @@ class OtpVerifyResponse {
   final OnboardingUser user;
   final String accessToken;
   final String refreshToken;
+  final int accessTokenExpiresIn;
   final OnboardingApplication application;
 
   OtpVerifyResponse({
@@ -13,6 +14,7 @@ class OtpVerifyResponse {
     required this.user,
     required this.accessToken,
     required this.refreshToken,
+    required this.accessTokenExpiresIn,
     required this.application,
   });
 
@@ -22,6 +24,8 @@ class OtpVerifyResponse {
       user: OnboardingUser.fromJson(json['user'] as Map<String, dynamic>),
       accessToken: json['accessToken'] as String? ?? '',
       refreshToken: json['refreshToken'] as String? ?? '',
+      accessTokenExpiresIn:
+          (json['accessTokenExpiresIn'] as num?)?.toInt() ?? 900,
       application: OnboardingApplication.fromJson(
         json['application'] as Map<String, dynamic>,
       ),
@@ -34,6 +38,7 @@ class OtpVerifyResponse {
       'user': user.toJson(),
       'accessToken': accessToken,
       'refreshToken': refreshToken,
+      'accessTokenExpiresIn': accessTokenExpiresIn,
       'application': application.toJson(),
     };
   }

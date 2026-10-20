@@ -10,7 +10,6 @@ import '../../../../core/models/onboarding/onboarding_services.dart';
 import '../../../../core/models/onboarding/onboarding_zone.dart';
 import '../../../../core/models/onboarding/otp_response.dart';
 import '../../../../core/models/onboarding/otp_verify_response.dart';
-import '../../../../core/models/onboarding/token_response.dart';
 import '../../../core/data/api_client.dart';
 import '../../../core/data/storage_service.dart';
 
@@ -35,10 +34,7 @@ class OnboardingRepository {
     return _instance!;
   }
 
-  static void initialize(
-    ApiClient apiClient,
-    StorageService storage,
-  ) {
+  static void initialize(ApiClient apiClient, StorageService storage) {
     _instance ??= OnboardingRepository.create(apiClient, storage);
   }
 
@@ -54,6 +50,8 @@ class OnboardingRepository {
   }
 
   Future<void> clearTokens() => _storage.clearTokens();
+
+  Future<void> signOut() => _apiClient.signOut();
 
   // ─── Step 1 ───────────────────────────────────────────────────────────────
 
@@ -89,7 +87,11 @@ class OnboardingRepository {
       );
     }
     final verify = OtpVerifyResponse.fromJson(data);
-    await _storage.saveTokens(verify.accessToken, verify.refreshToken);
+    await _storage.saveTokens(
+      verify.accessToken,
+      verify.refreshToken,
+      accessTokenExpiresIn: verify.accessTokenExpiresIn,
+    );
     return verify;
   }
 
@@ -352,23 +354,5 @@ class OnboardingRepository {
     return data
         .map((c) => OnboardingCategory.fromJson(c as Map<String, dynamic>))
         .toList();
-  }
-
-  // ─── Token refresh ─────────────────────────────────────────────────────────
-
-  Future<TokenResponse> refreshTokens(String refreshToken) async {
-    final resp = await _dio.post<Map<String, dynamic>>(
-      '/auth/refresh',
-      data: {'refreshToken': refreshToken},
-    );
-    final data = resp.data?['data'] as Map<String, dynamic>?;
-    if (data == null) {
-      throw DioException(
-        requestOptions: resp.requestOptions,
-        response: resp,
-        type: DioExceptionType.badResponse,
-      );
-    }
-    return TokenResponse.fromJson(data);
   }
 }
