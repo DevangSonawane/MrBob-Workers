@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
 import '../../../earnings/presentation/pages/earnings_page.dart';
@@ -24,6 +25,16 @@ class PartnerShell extends StatefulWidget {
 
 class _PartnerShellState extends State<PartnerShell> {
   int tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // H3: sync the online switch with the server whenever the shell opens —
+    // it also covers a fresh sign-in after a sign-out.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppState.instance.loadPresence();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

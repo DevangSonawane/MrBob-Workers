@@ -73,7 +73,7 @@ class BookingListTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${booking.distanceKm.toStringAsFixed(1)} km • ~${booking.etaMinutes} min',
+                    booking.travelLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

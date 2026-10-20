@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../models/gig_booking.dart' show GigBooking, GigBookingStatus;
 import '../models/gig_worker_profile.dart';
 import '../models/job_session.dart';
+import '../models/vendor_presence.dart';
+import '../services/location_service.dart';
 import '../../features/vendor/data/vendor_repository.dart';
 
 /// Zero-package app state (client-app convention: plain
@@ -13,7 +17,7 @@ import '../../features/vendor/data/vendor_repository.dart';
 /// session and derives earnings from booking statuses:
 /// pending payout = accepted/arrived/in-progress payouts,
 /// available balance = completed payouts.
-class AppState {
+class AppState with WidgetsBindingObserver {
   AppState._();
   static final AppState instance = AppState._();
 
@@ -27,8 +31,14 @@ class AppState {
 
   /// Worker availability — drives the Home online toggle.
   /// When offline, the feed shows a paused state and no new
-  /// bookings are injected.
-  final ValueNotifier<bool> isOnline = ValueNotifier<bool>(true);
+  /// bookings are injected. Kept in sync with [presence].
+  final ValueNotifier<bool> isOnline = ValueNotifier<bool>(false);
+
+  /// H3 presence: the server's view of the vendor — online state, last
+  /// position, the H3 cell and the heartbeat interval. The online switch
+  /// on Home is bound to [presence].
+  final ValueNotifier<VendorPresence> presence =
+      ValueNotifier<VendorPresence>(const VendorPresence());
 
   /// Whether we're currently loading data
   final ValueNotifier<bool> isLoading = ValueNotifier<bool>(false);
@@ -75,6 +85,8 @@ class AppState {
   bool get hasActiveJob => activeJob.value != null;
 
   VendorRepository? _repo;
+  final LocationService _location = const LocationService();
+  Timer? _presenceTimer;
 
   void _setRepo(VendorRepository repo) {
     _repo = repo;
@@ -103,24 +115,147 @@ class AppState {
   }
 
   // ------------------------------------------------------------------
+  // Presence (H3) — online switch, position heartbeat
+  // ------------------------------------------------------------------
+
+  /// Reads the server presence so the online switch starts in the right
+  /// state after an app restart.
+  Future<void> loadPresence() async {
+    if (_repo == null) return;
+    try {
+      final loaded = await _repo!.getPresence();
+      _applyPresence(loaded);
+      if (loaded.online) {
+        _startPresenceTimer();
+        // Push a position right away — the server may have expired the
+        // position while the app was closed.
+        unawaited(refreshPosition());
+      }
+    } catch (_) {
+      // Keep the local state — the switch can still be flipped by hand.
+    }
+  }
+
+  /// Flips the online switch. Returns true when the server accepted it.
+  ///
+  /// Going online needs a position: the server answers `400 Send your
+  /// location` when a vendor goes online without one.
+  Future<bool> setOnline(bool online) async {
+    if (_repo == null) return false;
+    try {
+      errorMessage.value = null;
+      if (!online) {
+        final updated = await _repo!.updatePresence(online: false);
+        _applyPresence(updated.copyWith(online: false));
+        _stopPresenceTimer();
+        return true;
+      }
+
+      final position = await _location.currentPosition();
+      if (position == null) {
+        errorMessage.value =
+            'Allow location access to receive nearby job requests.';
+        return false;
+      }
+
+      final updated = await _repo!.updatePresence(
+        online: true,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      _applyPresence(updated);
+      _startPresenceTimer();
+      return true;
+    } on LocationRequiredException catch (_) {
+      errorMessage.value =
+          'Turn on location access to receive nearby job requests.';
+      return false;
+    } catch (e) {
+      errorMessage.value = 'Could not update your status: $e';
+      return false;
+    }
+  }
+
+  /// Pushes the current position to the server. The server stops sending
+  /// offers after 5 minutes without a position, so this runs on a timer
+  /// and again whenever the app comes back to the foreground.
+  Future<void> refreshPosition() async {
+    if (_repo == null || !presence.value.online) return;
+    final position = await _location.currentPosition();
+    if (position == null) return;
+    try {
+      final updated = await _repo!.updatePresence(
+        online: true,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      _applyPresence(updated);
+      if (!updated.online) _stopPresenceTimer();
+    } catch (_) {
+      // A dropped heartbeat is not fatal — the next tick retries.
+    }
+  }
+
+  /// Goes offline before the session ends so the server stops routing
+  /// offers to this vendor.
+  Future<void> goOfflineOnSignOut() async {
+    _stopPresenceTimer();
+    if (_repo == null) return;
+    try {
+      final updated = await _repo!.updatePresence(online: false);
+      _applyPresence(updated.copyWith(online: false));
+    } catch (_) {
+      // The session is ending anyway — the server expires it on its own.
+    }
+  }
+
+  void _applyPresence(VendorPresence value) {
+    presence.value = value;
+    isOnline.value = value.online;
+  }
+
+  void _startPresenceTimer() {
+    _stopPresenceTimer();
+    final seconds = presence.value.updateEverySeconds;
+    _presenceTimer = Timer.periodic(
+      Duration(seconds: seconds > 0 ? seconds : 30),
+      (_) => refreshPosition(),
+    );
+  }
+
+  void _stopPresenceTimer() {
+    _presenceTimer?.cancel();
+    _presenceTimer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The heartbeat may have been throttled in the background, so push the
+    // position as soon as the app is back in the foreground.
+    if (state == AppLifecycleState.resumed && presence.value.online) {
+      unawaited(refreshPosition());
+    }
+  }
+
+  // ------------------------------------------------------------------
   // Booking lifecycle (§7 state machine) - using real API calls
   // ------------------------------------------------------------------
 
-  Future<void> loadAvailableJobs({int page = 1, int limit = 20}) async {
+  /// Loads the open jobs. [silent] keeps the loading spinner and the
+  /// error banner out of the way — used by the 5 second poll.
+  Future<void> loadAvailableJobs({
+    int page = 1,
+    int limit = 20,
+    bool silent = false,
+  }) async {
     if (_repo == null) return;
     try {
-      isLoading.value = true;
-      errorMessage.value = null;
+      if (!silent) {
+        isLoading.value = true;
+        errorMessage.value = null;
+      }
       final jobs = await _repo!.getAvailableJobs(page: page, limit: limit);
-      final vendorSkillIds = profile.value.skills
-          .map((skill) => skill.id)
-          .toSet();
-      // The current API deliberately returns every open job, irrespective of a
-      // vendor's services or city. Keep the feed scoped to the services the
-      // signed-in vendor has declared until server-side matching is enabled.
-      final matchingJobs = vendorSkillIds.isEmpty
-          ? jobs
-          : jobs.where((job) => vendorSkillIds.contains(job.skill.id)).toList();
+      final matchingJobs = _filterByVendorServices(jobs);
       // Replace only pending bookings, keep history
       final current = bookings.value;
       final history = current
@@ -133,10 +268,31 @@ class AppState {
           .toList();
       bookings.value = [...matchingJobs, ...history];
     } catch (e) {
-      errorMessage.value = 'Failed to load jobs: $e';
+      if (!silent) errorMessage.value = 'Failed to load jobs: $e';
     } finally {
-      isLoading.value = false;
+      if (!silent) isLoading.value = false;
     }
+  }
+
+  /// The 5 second poll that keeps offers flowing in while the vendor is
+  /// online and looking at the jobs list.
+  Future<void> pollAvailableJobs() {
+    if (!presence.value.online) return Future<void>.value();
+    return loadAvailableJobs(silent: true);
+  }
+
+  /// Keeps the feed scoped to the services the vendor declared, but never
+  /// drops a job the server explicitly offered to this vendor — H3 already
+  /// matched those by service and area.
+  List<GigBooking> _filterByVendorServices(List<GigBooking> jobs) {
+    final vendorSkillIds = profile.value.skills.map((skill) => skill.id).toSet();
+    if (vendorSkillIds.isEmpty) return jobs;
+    return jobs
+        .where(
+          (job) =>
+              job.offer != null || vendorSkillIds.contains(job.skill.id),
+        )
+        .toList();
   }
 
   Future<void> loadMyJobs({
@@ -186,6 +342,13 @@ class AppState {
         phase: JobPhase.arrived,
         arrivedAt: DateTime.now(),
       );
+    } on JobUnavailableException catch (error) {
+      // The offer ran out or another vendor was faster. Drop the job and
+      // refresh the list so the feed matches the server again.
+      removeBooking(booking.id);
+      errorMessage.value = error.message;
+      await loadAvailableJobs(silent: true);
+      rethrow;
     } catch (e) {
       errorMessage.value = 'Failed to accept job: $e';
       rethrow;
@@ -194,8 +357,18 @@ class AppState {
     }
   }
 
-  void declineBooking(GigBooking booking) {
+  /// Hands an offered job back so the next dispatch wave can pick it up.
+  Future<void> declineBooking(GigBooking booking) async {
+    // The job leaves the feed straight away — the offer is gone either way.
     _replaceBooking(booking.copyWith(status: GigBookingStatus.cancelled));
+    if (_repo == null) return;
+    try {
+      await _repo!.declineJob(booking.id);
+    } on JobUnavailableException {
+      // The offer had already run out.
+    } catch (e) {
+      errorMessage.value = 'Failed to decline job: $e';
+    }
   }
 
   Future<void> markArrived() async {
@@ -426,9 +599,15 @@ class AppState {
 
   Future<void> initialize(VendorRepository repo) async {
     _setRepo(repo);
+    try {
+      WidgetsBinding.instance.addObserver(this);
+    } on StateError catch (_) {
+      // Binding not initialized (e.g. in tests) — skip observer registration.
+    }
     // Available jobs are filtered by profile skills and merged with current
     // assignments, so this must not race with either request.
     await loadProfile();
+    await loadPresence();
     await loadMyJobs(scope: 'upcoming');
     await loadAvailableJobs();
   }
@@ -438,10 +617,13 @@ class AppState {
   // ------------------------------------------------------------------
 
   void signOut() {
+    _stopPresenceTimer();
     bookings.value = <GigBooking>[];
     activeJob.value = null;
     profile.value = const GigWorkerProfile();
     errorMessage.value = null;
+    presence.value = const VendorPresence();
+    isOnline.value = false;
   }
 
   void _replaceBooking(GigBooking updated) {
@@ -452,6 +634,13 @@ class AppState {
     } else {
       list.insert(0, updated);
     }
+    bookings.value = list;
+  }
+
+  /// Drops a booking from the feed — used when an offer expired or another
+  /// vendor took the job.
+  void removeBooking(String id) {
+    final list = bookings.value.where((b) => b.id != id).toList();
     bookings.value = list;
   }
 

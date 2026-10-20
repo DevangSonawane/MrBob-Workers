@@ -38,6 +38,10 @@
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <!-- Camera access for the KYC document scan (S4). -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Nearby Jobs (H3): the vendor's position decides which job offers
+         reach them, so a coarse location is required while online. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

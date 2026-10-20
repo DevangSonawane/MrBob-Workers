@@ -1,3 +1,4 @@
+import 'job_offer.dart';
 import 'skill.dart';
 import '../data/skills_data.dart';
 
@@ -191,6 +192,10 @@ class GigBooking {
     this.customer,
     this.address,
     this.startedAt,
+    this.offer,
+    this.openToAll = false,
+    this.bookingNumber,
+    this.paymentMode,
   });
 
   final String id;
@@ -203,7 +208,8 @@ class GigBooking {
   final double longitude;
 
   /// Straight-line distance from the worker's current location, in km.
-  final double distanceKm;
+  /// Null when the server has no position for the worker or the job.
+  final double? distanceKm;
   final int etaMinutes;
 
   /// 'Today, 4:30 PM' or 'ASAP'.
@@ -245,6 +251,36 @@ class GigBooking {
 
   /// Server timestamp for jobs that have already started.
   final DateTime? startedAt;
+
+  /// Set when H3 dispatched this job to this vendor. The offer expires after
+  /// [JobOffer.expiresAt] and the job can then be taken by anyone else.
+  final JobOffer? offer;
+
+  /// True when the job is not bound to an offer — any approved vendor may
+  /// take it.
+  final bool openToAll;
+
+  /// Human booking reference, e.g. `BK-000943`.
+  final String? bookingNumber;
+
+  /// When the customer pays, e.g. `PAY_AFTER_SERVICE`.
+  final String? paymentMode;
+
+  /// True when this job is waiting for a decision from this vendor.
+  bool get isOffered => offer != null;
+
+  /// "0.2 km away" — empty when the server has no distance to show.
+  String get distanceLabel =>
+      distanceKm == null ? '' : '${distanceKm!.toStringAsFixed(1)} km';
+
+  /// "0.2 km away · ~12 min" — parts without data are dropped.
+  String get travelLabel {
+    final parts = <String>[
+      if (distanceKm != null) '${distanceKm!.toStringAsFixed(1)} km away',
+      if (etaMinutes > 0) '~$etaMinutes min',
+    ];
+    return parts.join(' · ');
+  }
 
   /// What the customer paid in total (worker payout + platform fee).
   int get totalPaid => payout + platformFee;
@@ -307,6 +343,7 @@ class GigBooking {
             'fullAddress',
             'formatted',
           ]) ??
+          _areaLabel(booking) ??
           '',
       landmark:
           _readString(booking, const ['landmark']) ??
@@ -314,7 +351,7 @@ class GigBooking {
           '',
       latitude: coordinates.$1,
       longitude: coordinates.$2,
-      distanceKm: _readDouble(booking, const ['distanceKm', 'distance']) ?? 0,
+      distanceKm: _readDouble(booking, const ['distanceKm', 'distance']),
       etaMinutes: _readInt(booking, const ['etaMinutes', 'eta']) ?? 0,
       slotLabel: _slotLabel(booking),
       payout:
@@ -356,6 +393,10 @@ class GigBooking {
       startedAt: DateTime.tryParse(
         _readString(booking, const ['startedAt']) ?? '',
       )?.toLocal(),
+      offer: _parseOffer(booking),
+      openToAll: booking['openToAll'] == true,
+      bookingNumber: _readString(booking, const ['bookingNumber', 'reference']),
+      paymentMode: _readString(booking, const ['paymentMode', 'payment']),
     );
   }
 
@@ -369,6 +410,11 @@ class GigBooking {
     CustomerInfo? customer,
     AddressInfo? address,
     DateTime? startedAt,
+    JobOffer? offer,
+    bool clearOffer = false,
+    bool? openToAll,
+    String? bookingNumber,
+    String? paymentMode,
   }) {
     return GigBooking(
       id: id,
@@ -396,8 +442,40 @@ class GigBooking {
       customer: customer ?? this.customer,
       address: address ?? this.address,
       startedAt: startedAt ?? this.startedAt,
+      offer: clearOffer ? null : (offer ?? this.offer),
+      openToAll: openToAll ?? this.openToAll,
+      bookingNumber: bookingNumber ?? this.bookingNumber,
+      paymentMode: paymentMode ?? this.paymentMode,
     );
   }
+}
+
+/// Parses the H3 `offer` block. The block is only present when the job was
+/// dispatched to this vendor, and it always carries an `expiresAt`.
+JobOffer? _parseOffer(Map<String, dynamic> json) {
+  final offer = _readMap(json, const ['offer']);
+  if (offer.isEmpty || offer['expiresAt'] == null) return null;
+  return JobOffer.fromJson(offer);
+}
+
+/// Available jobs carry a service area instead of a full address:
+/// "Bandra West, Mumbai 400050".
+String? _areaLabel(Map<String, dynamic> json) {
+  final area = _readMap(json, const ['area', 'serviceArea']);
+  if (area.isEmpty) return null;
+  final zone = _placeName(area['zone'] ?? area['zoneName']);
+  final city = _placeName(area['city'] ?? area['cityName']);
+  final pincode = _readString(area, const ['pincode', 'zipCode', 'postalCode']);
+  final parts = <String>[?zone, ?city, ?pincode];
+  return parts.isEmpty ? null : parts.join(', ');
+}
+
+String? _placeName(Object? value) {
+  if (value is String) return value.isEmpty ? null : value;
+  if (value is Map<String, dynamic>) {
+    return _readString(value, const ['name', 'title', 'label']);
+  }
+  return null;
 }
 
 Map<String, dynamic> _readMap(Map<String, dynamic> json, List<String> keys) {

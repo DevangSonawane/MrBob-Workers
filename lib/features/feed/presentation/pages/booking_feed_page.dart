@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/gig_booking.dart';
 import '../../../../core/models/job_session.dart';
+import '../../../../core/models/vendor_presence.dart';
 import '../../../../core/state/app_state.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
@@ -12,7 +13,9 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../job/presentation/pages/arrival_otp_page.dart';
 import '../../../job/presentation/pages/booking_detail_page.dart';
 import '../../../job/presentation/pages/in_progress_page.dart';
+import '../../../vendor/data/vendor_repository.dart';
 import '../widgets/job_request_card.dart';
+import '../widgets/offer_countdown.dart';
 
 /// S8 — Home. One job at a time.
 ///
@@ -20,6 +23,9 @@ import '../widgets/job_request_card.dart';
 /// now shows a single focus card ("Best match") with Next to
 /// browse, and the rest as quiet one-line rows under "Up next".
 /// Earnings live on the Earnings tab — Home is only: next action.
+///
+/// H3: the card at the top is the job with the live offer, the list is
+/// polled every 5 seconds while the vendor is online.
 class BookingFeedPage extends StatefulWidget {
   const BookingFeedPage({super.key});
 
@@ -28,7 +34,7 @@ class BookingFeedPage extends StatefulWidget {
 }
 
 class _BookingFeedPageState extends State<BookingFeedPage> {
-  Timer? _simulationTimer;
+  Timer? _pollTimer;
   bool _isNavigating = false;
 
   /// Which pending booking is in focus. Indexes into
@@ -38,15 +44,50 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
   @override
   void initState() {
     super.initState();
-    _simulationTimer = Timer.periodic(const Duration(seconds: 45), (_) {
-      if (mounted) AppState.instance.injectNewBooking();
-    });
+    AppState.instance.presence.addListener(_syncPolling);
+    _syncPolling();
   }
 
   @override
   void dispose() {
-    _simulationTimer?.cancel();
+    AppState.instance.presence.removeListener(_syncPolling);
+    _pollTimer?.cancel();
     super.dispose();
+  }
+
+  /// H3: offers arrive by polling every 5 seconds while the vendor is
+  /// online and looking at this screen.
+  void _syncPolling() {
+    final online = AppState.instance.presence.value.online;
+    if (online && _pollTimer == null) {
+      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        AppState.instance.pollAvailableJobs();
+      });
+    } else if (!online && _pollTimer != null) {
+      _pollTimer!.cancel();
+      _pollTimer = null;
+    }
+  }
+
+  /// Offered jobs float to the top — they expire.
+  List<GigBooking> get _pending {
+    final pending = AppState.instance.pendingBookings;
+    final offered = pending.where((b) => b.offer != null).toList()
+      ..sort((a, b) => a.offer!.expiresAt.compareTo(b.offer!.expiresAt));
+    final rest = pending.where((b) => b.offer == null).toList();
+    return [...offered, ...rest];
+  }
+
+  Future<void> _toggleOnline(bool online) async {
+    AppHaptics.confirm();
+    final ok = await AppState.instance.setOnline(online);
+    if (!mounted || ok) return;
+    final message = AppState.instance.errorMessage.value;
+    if (message != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   Future<void> _acceptBooking(GigBooking booking) async {
@@ -99,6 +140,12 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
         context,
         MaterialPageRoute(builder: (_) => BookingDetailPage(booking: accepted)),
       );
+    } on JobUnavailableException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message)),
+        );
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -112,16 +159,17 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
     }
   }
 
-  void _declineBooking(List<GigBooking> pending, int index) {
+  Future<void> _declineBooking(GigBooking booking) async {
     AppHaptics.tick();
-    AppState.instance.declineBooking(pending[index]);
+    await AppState.instance.declineBooking(booking);
+    if (!mounted) return;
     // Keep focus on a valid card after the removal.
-    if (pending.length <= 1) {
-      _focusIndex = 0;
-    } else if (_focusIndex >= pending.length - 1) {
-      _focusIndex = 0;
-    }
-    setState(() {});
+    setState(() {
+      final pending = _pending;
+      if (pending.isEmpty || _focusIndex >= pending.length) {
+        _focusIndex = 0;
+      }
+    });
   }
 
   void _focusJob(String id, List<GigBooking> pending) {
@@ -188,16 +236,16 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
         child: RefreshIndicator(
           color: AppColors.brandForest,
           onRefresh: _refresh,
-          child: ValueListenableBuilder<bool>(
-            valueListenable: AppState.instance.isOnline,
-            builder: (context, isOnline, child) {
+          child: ValueListenableBuilder<VendorPresence>(
+            valueListenable: AppState.instance.presence,
+            builder: (context, presence, child) {
               return ValueListenableBuilder<JobSession?>(
                 valueListenable: AppState.instance.activeJob,
                 builder: (context, activeJob, _) {
                   return ValueListenableBuilder<List<GigBooking>>(
                     valueListenable: AppState.instance.bookings,
                     builder: (context, _, child) {
-                      final pending = AppState.instance.pendingBookings;
+                      final pending = _pending;
                       final focus = pending.isEmpty
                           ? null
                           : pending[_focusIndex.clamp(0, pending.length - 1)];
@@ -252,9 +300,9 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    isOnline ? 'Online' : 'Offline',
+                                    presence.online ? 'Online' : 'Offline',
                                     style: TextStyle(
-                                      color: isOnline
+                                      color: presence.online
                                           ? AppColors.brandForest
                                           : AppColors.mutedText,
                                       fontSize: 13,
@@ -263,12 +311,9 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
                                   ),
                                   const SizedBox(width: 6),
                                   Switch.adaptive(
-                                    value: isOnline,
+                                    value: presence.online,
                                     activeThumbColor: const Color(0xFF1E8E3E),
-                                    onChanged: (v) {
-                                      AppHaptics.confirm();
-                                      AppState.instance.isOnline.value = v;
-                                    },
+                                    onChanged: _toggleOnline,
                                   ),
                                 ],
                               ),
@@ -283,11 +328,19 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
                             ),
                           ],
                           const SizedBox(height: 14),
-                          if (!isOnline)
+                          if (!presence.online)
                             const EmptyState(
                               icon: LucideIcons.wifiOff,
                               title: "You're offline",
                               subtitle: 'Go online to receive requests.',
+                            )
+                          else if (presence.awaitingApproval)
+                            const EmptyState(
+                              icon: LucideIcons.clock,
+                              title: 'Your profile is under review',
+                              subtitle:
+                                  'You are online. Job requests will start '
+                                  'arriving once your profile is approved.',
                             )
                           else if (focus == null)
                             const EmptyState(
@@ -298,9 +351,9 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
                           else ...[
                             Row(
                               children: [
-                                const Text(
-                                  'Best match',
-                                  style: TextStyle(
+                                Text(
+                                  focus.offer != null ? 'New offer' : 'Best match',
+                                  style: const TextStyle(
                                     color: AppColors.brandForest,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
@@ -331,25 +384,24 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
                               duration: const Duration(milliseconds: 250),
                               transitionBuilder: (child, animation) =>
                                   FadeTransition(
-                                    opacity: animation,
-                                    child: SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0.06, 0),
-                                        end: Offset.zero,
-                                      ).animate(animation),
-                                      child: child,
-                                    ),
-                                  ),
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.06, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
                               child: JobRequestCard(
                                 key: ValueKey(focus.id),
                                 booking: focus,
                                 isTop: true,
                                 onAccept: () => _acceptBooking(focus),
-                                onDecline: () => _declineBooking(
-                                  pending,
-                                  pending.indexWhere((b) => b.id == focus.id),
-                                ),
+                                onDecline: () => _declineBooking(focus),
                                 onViewDetails: () => _openDetail(focus),
+                                onOfferExpired: () =>
+                                    AppState.instance.removeBooking(focus.id),
                               ),
                             ),
                             if (rest.isNotEmpty) ...[
@@ -450,7 +502,7 @@ class _WaitingRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${booking.distanceKm.toStringAsFixed(1)} km · ${booking.slotLabel}',
+                    _subLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -461,6 +513,14 @@ class _WaitingRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (booking.offer != null) ...[
+              const SizedBox(width: 8),
+              OfferCountdown(
+                offer: booking.offer!,
+                compact: true,
+                onExpired: () => AppState.instance.removeBooking(booking.id),
+              ),
+            ],
             Text(
               '₹${booking.payout}',
               style: const TextStyle(
@@ -479,6 +539,15 @@ class _WaitingRow extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String get _subLabel {
+    final distance = booking.distanceKm;
+    final parts = <String>[
+      if (distance != null) '${distance.toStringAsFixed(1)} km',
+      booking.slotLabel,
+    ];
+    return parts.join(' · ');
   }
 }
 

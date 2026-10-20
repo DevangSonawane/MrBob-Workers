@@ -575,6 +575,9 @@ class _SignOut extends StatelessWidget {
 
   Future<void> _signOut(BuildContext context) async {
     AppHaptics.confirm();
+    // H3: tell the server this vendor is offline before the session ends,
+    // otherwise offers keep coming to a vendor who is no longer in the app.
+    await AppState.instance.goOfflineOnSignOut();
     AppState.instance.signOut();
     await OnboardingRepository.instance.signOut();
     if (!context.mounted) return;

@@ -4,8 +4,30 @@ import '../../../core/data/api_client.dart';
 import '../../../core/data/storage_service.dart';
 import '../../../core/models/gig_booking.dart';
 import '../../../core/models/gig_worker_profile.dart';
+import '../../../core/models/vendor_presence.dart';
 import '../../../core/models/vendor_wallet.dart';
 import '../../../core/models/vendor_dispute.dart';
+
+/// The server rejected the action because the H3 offer is gone — it expired
+/// or another vendor was faster. The app drops the job and refreshes.
+class JobUnavailableException implements Exception {
+  const JobUnavailableException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// The server refused to switch the vendor online without a position.
+class LocationRequiredException implements Exception {
+  const LocationRequiredException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
 
 class VendorRepository {
   VendorRepository._(this._apiClient, this._storage);
@@ -79,11 +101,67 @@ class VendorRepository {
     return GigBooking.fromJson(_readObject(resp));
   }
 
+  /// H3 presence: the server keeps the vendor's online state, their last
+  /// position and the H3 cell it maps to.
+  Future<VendorPresence> getPresence() async {
+    final resp = await _dio.get<Map<String, dynamic>>('/vendor/presence');
+    return VendorPresence.fromJson(_readObject(resp));
+  }
+
+  /// Goes the vendor online (with a position) or offline.
+  Future<VendorPresence> updatePresence({
+    required bool online,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final resp = await _dio.put<Map<String, dynamic>>(
+        '/vendor/presence',
+        data: <String, dynamic>{
+          'online': online,
+          'latitude': ?latitude,
+          'longitude': ?longitude,
+        },
+      );
+      return VendorPresence.fromJson(_readObject(resp));
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 400) {
+        throw LocationRequiredException(
+          _errorMessage(error, 'Send your location'),
+        );
+      }
+      rethrow;
+    }
+  }
+
   Future<GigBooking> acceptJob(String id) async {
-    final resp = await _dio.post<Map<String, dynamic>>(
-      '/vendor/jobs/$id/accept',
-    );
-    return GigBooking.fromJson(_readObject(resp));
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        '/vendor/jobs/$id/accept',
+      );
+      return GigBooking.fromJson(_readObject(resp));
+    } on DioException catch (error) {
+      if (_isConflict(error)) {
+        throw JobUnavailableException(
+          _errorMessage(error, 'This job is no longer available'),
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Hands an offered job back so the next wave can pick it up.
+  Future<void> declineJob(String id) async {
+    try {
+      await _dio.post<Map<String, dynamic>>('/vendor/jobs/$id/decline');
+    } on DioException catch (error) {
+      if (_isConflict(error)) {
+        throw const JobUnavailableException(
+          'This offer has already expired',
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<GigBooking> startJob(String id, String otp) async {
@@ -353,5 +431,17 @@ class VendorRepository {
       response: resp,
       type: DioExceptionType.badResponse,
     );
+  }
+
+  static bool _isConflict(DioException error) =>
+      error.response?.statusCode == 409;
+
+  static String _errorMessage(DioException error, String fallback) {
+    final body = error.response?.data;
+    if (body is Map) {
+      final message = body['message'];
+      if (message is String && message.trim().isNotEmpty) return message.trim();
+    }
+    return fallback;
   }
 }

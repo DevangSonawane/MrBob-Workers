@@ -4,11 +4,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/models/gig_booking.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/app_haptics.dart';
+import 'offer_countdown.dart';
 
 /// Best-match hero card — big and centered.
 ///
 /// One job, decision-ready: what, when, how far, how much.
 /// Actions: Accept (forest) + Decline (red).
+///
+/// H3 adds two states on top of that:
+/// - an active offer shows a live countdown and a Decline button,
+/// - a job nobody near took is open to all vendors and shows Accept only.
 class JobRequestCard extends StatelessWidget {
   const JobRequestCard({
     super.key,
@@ -17,6 +22,7 @@ class JobRequestCard extends StatelessWidget {
     required this.onDecline,
     required this.onViewDetails,
     this.isTop = false,
+    this.onOfferExpired,
   });
 
   final GigBooking booking;
@@ -27,9 +33,13 @@ class JobRequestCard extends StatelessWidget {
   /// Kept for callers; no longer styles differently.
   final bool isTop;
 
+  /// Called when an offer runs out so the job can leave the list.
+  final VoidCallback? onOfferExpired;
+
   @override
   Widget build(BuildContext context) {
     final isAsap = booking.slotLabel.toUpperCase() == 'ASAP';
+    final offer = booking.offer;
     return GestureDetector(
       onTap: () {
         AppHaptics.press();
@@ -52,6 +62,13 @@ class JobRequestCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            if (offer != null) ...[
+              OfferCountdown(offer: offer, onExpired: onOfferExpired),
+              const SizedBox(height: 12),
+            ] else if (booking.openToAll) ...[
+              const _OpenToAllChip(),
+              const SizedBox(height: 12),
+            ],
             Container(
               width: 60,
               height: 60,
@@ -81,7 +98,7 @@ class JobRequestCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${isAsap ? 'ASAP' : booking.slotLabel} · ${booking.distanceKm.toStringAsFixed(1)} km · ~${booking.etaMinutes} min',
+              _metaLine(isAsap),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -105,7 +122,6 @@ class JobRequestCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(LucideIcons.mapPin,
                     size: 14, color: AppColors.mutedText),
@@ -126,6 +142,17 @@ class JobRequestCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (booking.bookingNumber != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                booking.bookingNumber!,
+                style: const TextStyle(
+                  color: AppColors.mutedText,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Row(
               children: [
@@ -139,19 +166,63 @@ class JobRequestCard extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _DeclineButton(
-                    onTap: () {
-                      AppHaptics.tick();
-                      onDecline();
-                    },
+                if (offer != null) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _DeclineButton(
+                      onTap: () {
+                        AppHaptics.tick();
+                        onDecline();
+                      },
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// "ASAP · 0.2 km away · ~12 min" — the distance is dropped when the
+  /// server has no position for the job or the vendor.
+  String _metaLine(bool isAsap) {
+    final parts = <String>[
+      if (isAsap) 'ASAP' else booking.slotLabel,
+      if (booking.distanceKm != null)
+        '${booking.distanceKm!.toStringAsFixed(1)} km away',
+      if (booking.etaMinutes > 0) '~${booking.etaMinutes} min',
+    ];
+    return parts.join(' · ');
+  }
+}
+
+class _OpenToAllChip extends StatelessWidget {
+  const _OpenToAllChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceTint,
+        borderRadius: BorderRadius.circular(AppColors.radiusPill),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.globe, size: 14, color: AppColors.brandForest),
+          SizedBox(width: 6),
+          Text(
+            'Open to all vendors',
+            style: TextStyle(
+              color: AppColors.brandForest,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

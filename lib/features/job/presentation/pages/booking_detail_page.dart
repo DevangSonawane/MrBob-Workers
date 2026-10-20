@@ -293,7 +293,7 @@ class _MapHeaderState extends State<_MapHeader> {
                 border: Border.all(color: AppColors.borderSubtle),
               ),
               child: Text(
-                '${widget.booking.distanceKm} km · ~${widget.booking.etaMinutes} min',
+                widget.booking.travelLabel,
                 style: const TextStyle(
                   color: AppColors.brandForest,
                   fontSize: 12,

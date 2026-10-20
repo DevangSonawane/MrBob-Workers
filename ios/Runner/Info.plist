@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan your Aadhar or PAN card for KYC verification.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used to show nearby job requests and let customers know how close you are.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo library access is required to upload your Aadhar or PAN card for KYC verification.</string>
 	<key>LSRequiresIPhoneOS</key>

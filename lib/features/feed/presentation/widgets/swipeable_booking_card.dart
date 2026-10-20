@@ -114,7 +114,7 @@ class _SwipeableBookingCardState extends State<SwipeableBookingCard>
     final declineOpacity = (-_offset / _threshold).clamp(0.0, 1.0);
     return Semantics(
       label: '${widget.booking.skill.title} booking, '
-          '${widget.booking.distanceKm.toStringAsFixed(1)} km away, '
+          '${widget.booking.travelLabel}, '
           'pays ₹${widget.booking.payout}. '
           'Swipe right to accept, left to decline.',
       child: GestureDetector(
@@ -256,7 +256,7 @@ class _CardContent extends StatelessWidget {
                   size: 14, color: AppColors.mutedText),
               const SizedBox(width: 5),
               Text(
-                '${booking.distanceKm.toStringAsFixed(1)} km',
+                booking.distanceLabel,
                 style: const TextStyle(
                   color: AppColors.mutedText,
                   fontSize: 13,
