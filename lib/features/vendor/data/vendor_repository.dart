@@ -5,6 +5,7 @@ import '../../../core/data/storage_service.dart';
 import '../../../core/models/gig_booking.dart';
 import '../../../core/models/gig_worker_profile.dart';
 import '../../../core/models/vendor_wallet.dart';
+import '../../../core/models/vendor_dispute.dart';
 
 class VendorRepository {
   VendorRepository._(this._apiClient, this._storage);
@@ -155,6 +156,87 @@ class VendorRepository {
   Future<GigBooking> getBookingDetails(String id) async {
     final resp = await _dio.get<Map<String, dynamic>>('/vendor/bookings/$id');
     return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<GigBooking> rateCustomer({
+    required String bookingId,
+    required int rating,
+    String? comment,
+  }) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/bookings/$bookingId/rating',
+      data: {
+        'rating': rating,
+        if (comment != null && comment.trim().isNotEmpty)
+          'comment': comment.trim(),
+      },
+    );
+    return GigBooking.fromJson(_readObject(resp));
+  }
+
+  Future<List<DisputeCategory>> getDisputeCategories() async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/disputes/categories',
+    );
+    final data = _readData(resp);
+    return (data as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(DisputeCategory.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<List<VendorDispute>> getDisputes({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final resp = await _dio.get<Map<String, dynamic>>(
+      '/vendor/disputes',
+      queryParameters: {'page': page, 'limit': limit},
+    );
+    return _extractList(_readData(resp))
+        .whereType<Map<String, dynamic>>()
+        .map(VendorDispute.fromJson)
+        .toList(growable: false);
+  }
+
+  Future<VendorDispute> createDispute({
+    required String type,
+    required String category,
+    required String subject,
+    required String description,
+    String? bookingId,
+  }) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/disputes',
+      data: {
+        'type': type,
+        'category': category,
+        'subject': subject,
+        'description': description,
+        if (bookingId != null) 'bookingId': bookingId,
+      },
+    );
+    return VendorDispute.fromJson(_readObject(resp));
+  }
+
+  Future<VendorDispute> getDispute(String id) async {
+    final resp = await _dio.get<Map<String, dynamic>>('/vendor/disputes/$id');
+    return VendorDispute.fromJson(_readObject(resp));
+  }
+
+  Future<VendorDispute> replyToDispute(String id, String message) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/disputes/$id/messages',
+      data: {'message': message},
+    );
+    return VendorDispute.fromJson(_readObject(resp));
+  }
+
+  Future<VendorDispute> closeDispute(String id) async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      '/vendor/disputes/$id/close',
+    );
+    return VendorDispute.fromJson(_readObject(resp));
   }
 
   Future<String> getCompletionImageUrl(String bookingId, String imageId) async {

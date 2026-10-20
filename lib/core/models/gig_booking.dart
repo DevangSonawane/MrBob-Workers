@@ -66,12 +66,33 @@ class CompletionImage {
 }
 
 class JobActions {
-  const JobActions({required this.canCollectPayment});
+  const JobActions({required this.canCollectPayment, required this.canRate});
 
   final bool canCollectPayment;
+  final bool canRate;
 
   factory JobActions.fromJson(Map<String, dynamic> json) {
-    return JobActions(canCollectPayment: json['canCollectPayment'] == true);
+    return JobActions(
+      canCollectPayment: json['canCollectPayment'] == true,
+      canRate: json['canRate'] == true,
+    );
+  }
+}
+
+class VendorRating {
+  const VendorRating({required this.rating, this.comment, this.ratedAt});
+
+  final int rating;
+  final String? comment;
+  final DateTime? ratedAt;
+
+  factory VendorRating.fromJson(Map<String, dynamic> json) {
+    return VendorRating(
+      rating: _readInt(json, const ['rating'])?.clamp(1, 5) ?? 0,
+      comment: _readString(json, const ['comment']),
+      ratedAt: DateTime.tryParse(_readString(json, const ['ratedAt']) ?? '')
+          ?.toLocal(),
+    );
   }
 }
 
@@ -166,6 +187,7 @@ class GigBooking {
     this.completionOtpVerified = false,
     this.completionImages = const [],
     this.actions,
+    this.vendorRating,
     this.customer,
     this.address,
     this.startedAt,
@@ -212,6 +234,9 @@ class GigBooking {
   /// Actions the vendor can take
   final JobActions? actions;
 
+  /// Rating submitted by the vendor for this customer.
+  final VendorRating? vendorRating;
+
   /// Customer details (populated after accepting)
   final CustomerInfo? customer;
 
@@ -236,6 +261,7 @@ class GigBooking {
     final customer = _readMap(booking, const ['customer', 'user', 'client']);
     final address = _readMap(booking, const ['address', 'location']);
     final service = _readMap(booking, const ['service', 'skill', 'category']);
+    final ratings = _readMap(booking, const ['ratings']);
     final coordinates = _readCoordinates(booking, address);
     final skillId =
         _readString(booking, const ['skillId', 'serviceId', 'categoryId']) ??
@@ -322,6 +348,9 @@ class GigBooking {
       actions: booking['actions'] != null
           ? JobActions.fromJson(booking['actions'] as Map<String, dynamic>)
           : null,
+      vendorRating: ratings['byVendor'] is Map<String, dynamic>
+          ? VendorRating.fromJson(ratings['byVendor'] as Map<String, dynamic>)
+          : null,
       customer: customer.isNotEmpty ? CustomerInfo.fromJson(customer) : null,
       address: address.isNotEmpty ? AddressInfo.fromJson(address) : null,
       startedAt: DateTime.tryParse(
@@ -336,6 +365,7 @@ class GigBooking {
     bool? completionOtpVerified,
     List<CompletionImage>? completionImages,
     JobActions? actions,
+    VendorRating? vendorRating,
     CustomerInfo? customer,
     AddressInfo? address,
     DateTime? startedAt,
@@ -362,6 +392,7 @@ class GigBooking {
           completionOtpVerified ?? this.completionOtpVerified,
       completionImages: completionImages ?? this.completionImages,
       actions: actions ?? this.actions,
+      vendorRating: vendorRating ?? this.vendorRating,
       customer: customer ?? this.customer,
       address: address ?? this.address,
       startedAt: startedAt ?? this.startedAt,

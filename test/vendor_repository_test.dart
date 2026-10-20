@@ -155,6 +155,33 @@ void main() {
       expect(booking.customerName, 'Priya Shah');
     });
 
+    test('rateCustomer posts rating and optional comment', () async {
+      adapter.enqueue(<String, dynamic>{
+        'data': <String, dynamic>{
+          ..._bookingJson(id: 'BK42', status: 'completed'),
+          'ratings': <String, dynamic>{
+            'byVendor': <String, dynamic>{
+              'rating': 4,
+              'comment': 'Clear instructions',
+            },
+          },
+        },
+      });
+
+      final booking = await repository.rateCustomer(
+        bookingId: 'BK42',
+        rating: 4,
+        comment: 'Clear instructions',
+      );
+
+      expect(adapter.lastOptions.method, 'POST');
+      expect(adapter.lastOptions.path, '/vendor/bookings/BK42/rating');
+      expect(adapter.lastBody, contains('"rating":4'));
+      expect(adapter.lastBody, contains('Clear instructions'));
+      expect(booking.vendorRating?.rating, 4);
+      expect(booking.vendorRating?.comment, 'Clear instructions');
+    });
+
     test('wallet endpoints parse the live response shapes', () async {
       adapter.enqueue(<String, dynamic>{
         'data': <String, dynamic>{

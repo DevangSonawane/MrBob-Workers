@@ -132,10 +132,15 @@ class _UploadImagesPageState extends State<UploadImagesPage> {
     if (_goingToComplete || !mounted) return;
     if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
     _goingToComplete = true;
+    // `widget.booking` is the pre-completion snapshot. Use the booking held
+    // in state after the completion response so completed-only UI (rating)
+    // receives the server status and actions.
+    final completedBooking =
+        AppState.instance.activeJob.value?.booking ?? widget.booking;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => JobCompletePage(booking: widget.booking),
+        builder: (_) => JobCompletePage(booking: completedBooking),
       ),
     );
   }

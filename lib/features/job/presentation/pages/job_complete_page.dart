@@ -21,6 +21,25 @@ class JobCompletePage extends StatefulWidget {
 
 class _JobCompletePageState extends State<JobCompletePage> {
   int _rating = 0;
+  bool _isSubmitting = false;
+  bool _hasSavedRating = false;
+  late final TextEditingController _commentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _rating = widget.booking.vendorRating?.rating ?? 0;
+    _hasSavedRating = widget.booking.vendorRating != null;
+    _commentController = TextEditingController(
+      text: widget.booking.vendorRating?.comment ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +62,7 @@ class _JobCompletePageState extends State<JobCompletePage> {
                 curve: Curves.elasticOut,
                 builder: (context, scale, child) => Transform.scale(
                   scale: scale,
-                  child: Opacity(
-                    opacity: scale.clamp(0.0, 1.0),
-                    child: child,
-                  ),
+                  child: Opacity(opacity: scale.clamp(0.0, 1.0), child: child),
                 ),
                 child: Container(
                   width: 60,
@@ -56,8 +72,11 @@ class _JobCompletePageState extends State<JobCompletePage> {
                     shape: BoxShape.circle,
                   ),
                   alignment: Alignment.center,
-                  child: const Icon(LucideIcons.check,
-                      size: 30, color: Colors.white),
+                  child: const Icon(
+                    LucideIcons.check,
+                    size: 30,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -101,8 +120,11 @@ class _JobCompletePageState extends State<JobCompletePage> {
                           shape: BoxShape.circle,
                         ),
                         alignment: Alignment.center,
-                        child: Icon(booking.skill.icon,
-                            size: 18, color: AppColors.brandForest),
+                        child: Icon(
+                          booking.skill.icon,
+                          size: 18,
+                          color: AppColors.brandForest,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -136,36 +158,23 @@ class _JobCompletePageState extends State<JobCompletePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Inline rating — one row, skippable via Done.
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Rate customer',
-                      style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w500)),
-                  const SizedBox(width: 10),
-                  for (var i = 1; i <= 5; i++)
-                    GestureDetector(
-                      onTap: () {
-                        AppHaptics.tick();
-                        setState(() => _rating = i);
-                      },
-                      child: Padding(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 3),
-                        child: Icon(
-                          LucideIcons.star,
-                          size: 24,
-                          color: i <= _rating
-                              ? AppColors.brandGold
-                              : const Color(0xFFD8D3C8),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              if (_canRate) ...[
+                const SizedBox(height: 2),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _RatingForm(
+                    rating: _rating,
+                    controller: _commentController,
+                    isSubmitting: _isSubmitting,
+                    hasExistingRating: _hasSavedRating,
+                    onStarTap: (rating) {
+                      AppHaptics.tick();
+                      setState(() => _rating = rating);
+                    },
+                    onSubmit: _submitRating,
+                  ),
+                ),
+              ],
               const Spacer(),
               Padding(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 10 + bottomInset),
@@ -178,11 +187,14 @@ class _JobCompletePageState extends State<JobCompletePage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('Done',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -205,6 +217,44 @@ class _JobCompletePageState extends State<JobCompletePage> {
     );
   }
 
+  bool get _canRate =>
+      widget.booking.status == GigBookingStatus.completed &&
+      (widget.booking.actions?.canRate ?? true);
+
+  Future<void> _submitRating() async {
+    if (_rating == 0 || _isSubmitting) {
+      if (_rating == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a star rating first.')),
+        );
+      }
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      await AppState.instance.rateCustomer(
+        bookingId: widget.booking.id,
+        rating: _rating,
+        comment: _commentController.text,
+      );
+      if (!mounted) return;
+      setState(() => _hasSavedRating = true);
+      AppHaptics.success();
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Customer rating saved.')));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save the rating. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
   String _durationWorked() {
     final session = AppState.instance.activeJob.value;
     if (session == null || session.booking.id != widget.booking.id) {
@@ -216,5 +266,104 @@ class _JobCompletePageState extends State<JobCompletePage> {
     if (hours > 0) return '$hours hr $minutes min';
     final m = elapsed.inMinutes;
     return m <= 1 ? '1 min' : '$m min';
+  }
+}
+
+class _RatingForm extends StatelessWidget {
+  const _RatingForm({
+    required this.rating,
+    required this.controller,
+    required this.isSubmitting,
+    required this.hasExistingRating,
+    required this.onStarTap,
+    required this.onSubmit,
+  });
+
+  final int rating;
+  final TextEditingController controller;
+  final bool isSubmitting;
+  final bool hasExistingRating;
+  final ValueChanged<int> onStarTap;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFCF5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        children: [
+          Text(
+            hasExistingRating ? 'Update customer rating' : 'Rate customer',
+            style: const TextStyle(
+              color: AppColors.brandForest,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 1; i <= 5; i++)
+                IconButton(
+                  tooltip: '$i star${i == 1 ? '' : 's'}',
+                  onPressed: isSubmitting ? null : () => onStarTap(i),
+                  icon: Icon(
+                    i <= rating ? Icons.star : Icons.star_border,
+                    size: 25,
+                    color: i <= rating
+                        ? AppColors.brandGold
+                        : const Color(0xFFD8D3C8),
+                  ),
+                ),
+            ],
+          ),
+          TextField(
+            controller: controller,
+            enabled: !isSubmitting,
+            maxLength: 500,
+            minLines: 1,
+            maxLines: 2,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              hintText: 'Add a comment (optional)',
+              counterText: '',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: ElevatedButton(
+              onPressed: isSubmitting ? null : onSubmit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.brandForest,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(9),
+                ),
+              ),
+              child: isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(hasExistingRating ? 'Update rating' : 'Save rating'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

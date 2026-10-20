@@ -12,6 +12,7 @@ import '../../../vendor/data/vendor_repository.dart';
 import '../../../auth/presentation/pages/login_page.dart';
 import '../../../skills/presentation/pages/skills_select_page.dart';
 import 'payout_account_page.dart';
+import 'help_disputes_page.dart';
 
 /// S7 tab 4 — worker profile.
 class ProfilePage extends StatelessWidget {
@@ -52,6 +53,8 @@ class ProfilePage extends StatelessWidget {
                   _DocumentsCard(profile: profile),
                   const SizedBox(height: 20),
                   const _PayoutAccountSection(),
+                  const SizedBox(height: 20),
+                  const _HelpDisputesSection(),
                   const SizedBox(height: 32),
                   const _SignOut(),
                 ],
@@ -62,6 +65,63 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HelpDisputesSection extends StatelessWidget {
+  const _HelpDisputesSection();
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(15),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(15),
+      onTap: () {
+        AppHaptics.press();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const HelpDisputesPage()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.borderSubtle),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: const Row(
+          children: [
+            Icon(
+              LucideIcons.messageCircleQuestion,
+              color: AppColors.brandForest,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Help & disputes',
+                    style: TextStyle(
+                      color: AppColors.brandForest,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Get support or track an existing request.',
+                    style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Icon(LucideIcons.chevronRight, color: AppColors.mutedText),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _IdentityCard extends StatelessWidget {

@@ -11,6 +11,7 @@ import '../../../../shared/widgets/primary_button.dart';
 import '../../../job/presentation/pages/arrival_otp_page.dart';
 import '../../../job/presentation/pages/booking_detail_page.dart';
 import '../../../job/presentation/pages/in_progress_page.dart';
+import '../../../job/presentation/pages/job_complete_page.dart';
 
 /// S7 tab 2 — the live job session (phase chip + deep-link CTA
 /// into the right screen for the current phase) above the
@@ -323,9 +324,10 @@ class _HistoryRow extends StatelessWidget {
 
   final GigBooking booking;
 
-  /// Still-active jobs open the booking detail. Completed ones don't —
-  /// they're finished, so there's nothing to continue or view.
-  bool get _canOpen => booking.status.isActive;
+  /// Completed jobs remain openable so a vendor can submit or update their
+  /// customer rating after leaving the completion screen.
+  bool get _canOpen =>
+      booking.status.isActive || booking.status == GigBookingStatus.completed;
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +401,9 @@ class _HistoryRow extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => BookingDetailPage(booking: booking),
+              builder: (_) => booking.status == GigBookingStatus.completed
+                  ? JobCompletePage(booking: booking)
+                  : BookingDetailPage(booking: booking),
             ),
           );
         },

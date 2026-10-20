@@ -295,6 +295,36 @@ class AppState {
     }
   }
 
+  Future<GigBooking> rateCustomer({
+    required String bookingId,
+    required int rating,
+    String? comment,
+  }) async {
+    if (_repo == null) {
+      throw StateError('Vendor repository is not initialized.');
+    }
+    try {
+      isLoading.value = true;
+      errorMessage.value = null;
+      final updated = await _repo!.rateCustomer(
+        bookingId: bookingId,
+        rating: rating,
+        comment: comment,
+      );
+      _replaceBooking(updated);
+      final active = activeJob.value;
+      if (active != null && active.booking.id == bookingId) {
+        activeJob.value = active.copyWith(booking: updated);
+      }
+      return updated;
+    } catch (e) {
+      errorMessage.value = 'Failed to rate customer: $e';
+      rethrow;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   /// Demo escape hatch: abandon the active job (cancels it).
   Future<void> cancelActiveJob() async {
     final job = activeJob.value;
