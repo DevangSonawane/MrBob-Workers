@@ -27,12 +27,12 @@ class EmptyState extends StatelessWidget {
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: AppColors.surfaceTint,
+                color: AppColors.brandGold.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 icon,
-                color: AppColors.brandGold,
+                color: AppColors.brandTeal,
                 size: 40,
               ),
             ),
@@ -41,7 +41,7 @@ class EmptyState extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: AppColors.brandForest,
+                color: AppColors.brandTeal,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
                 height: 1.25,

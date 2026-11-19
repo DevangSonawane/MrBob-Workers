@@ -19,6 +19,9 @@ dependencies:
   flutter_secure_storage: ^9.2.2
   geolocator: ^13.0.4
   image: ^4.4.0
+  google_fonts: ^6.3.2
+  liquid_glass_widgets:
+    path: vendor/liquid_glass_widgets
 
 dev_dependencies:
   flutter_test:

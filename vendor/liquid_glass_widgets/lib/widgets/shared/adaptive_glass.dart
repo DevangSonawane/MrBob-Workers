@@ -48,6 +48,7 @@ class AdaptiveGlass extends StatelessWidget {
     this.glowIntensity = 0.0,
     this.isInteractive = false,
     this.platformViewBackdrop = false,
+    this.backgroundKey,
     this.clipExpansion = EdgeInsets.zero,
     super.key,
   });
@@ -117,6 +118,11 @@ class AdaptiveGlass extends StatelessWidget {
   /// that refract Flutter content (e.g. the indicator) should NOT set this.
   final bool platformViewBackdrop;
 
+  /// Optional capture source used by the standard lightweight renderer for
+  /// actual backdrop colour/refraction.  When omitted, existing callers keep
+  /// the synthetic-frost behaviour.
+  final GlobalKey? backgroundKey;
+
   /// Detects if Impeller rendering engine is active.
   ///
   /// Returns true when shader filters are supported (Impeller),
@@ -135,6 +141,7 @@ class AdaptiveGlass extends StatelessWidget {
     double glowIntensity = 0.0,
     bool isInteractive = false,
     bool platformViewBackdrop = false,
+    GlobalKey? backgroundKey,
   }) {
     return AdaptiveGlass(
       shape: shape,
@@ -145,6 +152,7 @@ class AdaptiveGlass extends StatelessWidget {
       glowIntensity: glowIntensity,
       isInteractive: isInteractive,
       platformViewBackdrop: platformViewBackdrop,
+      backgroundKey: backgroundKey,
       child: child,
     );
   }
@@ -414,6 +422,7 @@ class AdaptiveGlass extends StatelessWidget {
           settings: effectiveSettings,
           densityFactor: 0.0, // Containers are never elevated
           glowIntensity: 0.0, // Containers don't glow
+          backgroundKey: backgroundKey,
           child: InheritedLiquidGlass(
             settings: effectiveSettings,
             quality: quality,
@@ -436,6 +445,7 @@ class AdaptiveGlass extends StatelessWidget {
         densityFactor: densityFactor, // 0.0 or 1.0 based on elevation
         glowIntensity:
             glowIntensity * 0.35, // Normalise additive glow to match Impeller
+        backgroundKey: backgroundKey,
         child: content,
       );
 

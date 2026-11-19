@@ -741,11 +741,12 @@ class _GlassMenuState extends State<GlassMenu> with TickerProviderStateMixin {
       widgetQuality: widget.quality,
     );
 
-    // LiquidGlassBlendGroup requires an InheritedGeometryRenderLink that is
-    // only present when AdaptiveLiquidGlassLayer creates a full LiquidGlassLayer.
-    // That layer is skipped in minimal quality and platformViewBackdrop mode, so
-    // we must skip the blend group in those same cases (fixes issue #214).
-    final bool useBlendGroup = effectiveQuality != GlassQuality.minimal &&
+    // LiquidGlassBlendGroup requires an InheritedGeometryRenderLink. The
+    // adaptive layer provisions one only for the premium renderer; standard
+    // and minimal deliberately use shape-local fallback surfaces instead.
+    // Do not install a blend group at those tiers or an overlay menu will
+    // assert as soon as it opens.
+    final bool useBlendGroup = effectiveQuality == GlassQuality.premium &&
         !widget.platformViewBackdrop;
 
     final maxRadius = math.min(currentWidth, currentHeight) / 2.0;

@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import 'core/data/api_client.dart';
 import 'core/data/storage_service.dart';
@@ -14,8 +15,11 @@ import 'features/onboarding/presentation/pages/onboarding_verification_page.dart
 import 'features/shell/presentation/pages/partner_shell.dart';
 import 'features/vendor/data/vendor_repository.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Pre-warm the liquid-glass shaders (same as the client app) so the
+  // floating tab pill renders immediately instead of flashing.
+  await LiquidGlassWidgets.initialize();
 
   final storage = StorageService(FlutterSecureStorage());
   final apiClient = ApiClient(storage);
@@ -27,10 +31,27 @@ void main() {
   AppState.instance.initialize(vendorRepo);
 
   runApp(
-    MediaQuery.withClampedTextScaling(
-      minScaleFactor: 1.0,
-      maxScaleFactor: 1.3,
-      child: const MrBobPartnerApp(),
+    // Glass config mirrors the client app: quality capped at standard and
+    // pinned so the tab-bar indicator never pops between tiers.
+    LiquidGlassWidgets.wrap(
+      adaptiveQuality: true,
+      adaptiveConfig: const GlassAdaptiveScopeConfig(
+        maxQuality: GlassQuality.standard,
+        initialQuality: GlassQuality.standard,
+        allowStepUp: false,
+      ),
+      respectSystemAccessibility: true,
+      brightnessResolver: Theme.maybeBrightnessOf,
+      theme: GlassThemeData.simple(
+        blur: 12,
+        thickness: 25,
+        quality: GlassQuality.standard,
+      ),
+      child: MediaQuery.withClampedTextScaling(
+        minScaleFactor: 1.0,
+        maxScaleFactor: 1.3,
+        child: const MrBobPartnerApp(),
+      ),
     ),
   );
 }

@@ -646,6 +646,29 @@ void main() {
     float fresnel = rimBase * 0.12 * uEdgeConfig.y + ring * 0.45;
     finalColor.rgb = clamp(finalColor.rgb + vec3(fresnel), 0.0, 1.0);
 
+    // Thin-film reflection: chromatic refraction alone can only split colours
+    // already present in the backdrop, so it reads white over a neutral page.
+    // This is a small, normal- and light-driven spectral reflection at the same
+    // physical rim. It deliberately uses chromaticAberration as its existing
+    // opt-in control: zero keeps legacy callers byte-for-byte on the white-rim
+    // path, while the effect costs only ALU (no additional texture samples).
+    float prismStrength = clamp(uChromaticAberration, 0.0, 1.0);
+    if (prismStrength > 0.001) {
+        float litEdge = max(dot(normalXY, uLightDirection), 0.0);
+        float hue = smoothstep(-0.85, 0.85, normalXY.x);
+        vec3 coolSpectrum = mix(vec3(0.05, 0.78, 1.0),
+                                 vec3(0.84, 0.24, 1.0), hue);
+        vec3 spectralReflection = mix(coolSpectrum, vec3(1.0, 0.58, 0.28),
+                                      litEdge * litEdge * litEdge);
+        float spectralRim = max(rimBase, ring) *
+            prismStrength * (0.45 + litEdge * 0.25);
+        // This pass works on an already bright, premultiplied glass body.
+        // A positive RGB add would clamp back to white on light pages, erasing
+        // the hue. A low-weight spectral tint preserves the reflection colour.
+        vec3 spectralTint = mix(vec3(1.0), spectralReflection, 0.92);
+        finalColor.rgb *= mix(vec3(1.0), spectralTint, spectralRim);
+    }
+
     // sortd patch: PASSTHROUGH mode, for glass over a platform view.
     //
     // Stock, the body is opaque over its whole shape. Over a platform view

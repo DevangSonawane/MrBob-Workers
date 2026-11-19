@@ -145,7 +145,17 @@ class _AdaptiveLiquidGlassLayerState extends State<AdaptiveLiquidGlassLayer> {
     //    _FrostedFallback (live BackdropFilter) when platformViewBackdrop is
     //    set, which correctly samples through the PlatformView compositor.
     // -------------------------------------------------------------------------
-    if (effectiveQuality == GlassQuality.minimal ||
+    // Standard surfaces render through shape-local [LightweightLiquidGlass]
+    // descendants.  Leaving the parent [LiquidGlassLayer] in place at this
+    // tier installs a second, bounds-wide Impeller filter above those shapes.
+    // That extra filter has no blend group to service at standard quality and
+    // washes a tab bar into a flat white slab.  It also makes standard tab
+    // bars visibly different from standalone GlassSearchBar/GlassButton
+    // surfaces, which correctly use only their shape-local renderer.
+    //
+    // Keep the inherited settings/quality scope, but reserve LiquidGlassLayer
+    // (and its screen-space filter) exclusively for the premium blend path.
+    if (effectiveQuality != GlassQuality.premium ||
         widget.platformViewBackdrop) {
       return GlassIsolationScope(
         isolated: false,

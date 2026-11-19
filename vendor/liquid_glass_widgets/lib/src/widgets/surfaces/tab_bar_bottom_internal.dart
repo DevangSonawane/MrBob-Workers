@@ -805,6 +805,7 @@ class TabIndicatorState extends State<TabIndicator>
                       child: AdaptiveGlass.grouped(
                         quality: widget.backgroundQuality ?? widget.quality,
                         platformViewBackdrop: widget.platformViewBackdrop,
+                        backgroundKey: widget.backgroundKey,
                         shape: _barShape,
                         child: const SizedBox.expand(),
                       ),
@@ -896,6 +897,7 @@ class TabIndicatorState extends State<TabIndicator>
                       child: AdaptiveGlass.grouped(
                         quality: widget.backgroundQuality ?? widget.quality,
                         platformViewBackdrop: widget.platformViewBackdrop,
+                        backgroundKey: widget.backgroundKey,
                         shape: _barShape,
                         child: const SizedBox.expand(),
                       ),

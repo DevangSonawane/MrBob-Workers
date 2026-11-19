@@ -41,7 +41,11 @@ class JobsPage extends StatelessWidget {
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: const [
-                        SizedBox(height: 120),
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(20, 18, 20, 0),
+                          child: _Header(),
+                        ),
+                        SizedBox(height: 90),
                         EmptyState(
                           icon: LucideIcons.briefcase,
                           title: 'No jobs yet',
@@ -81,7 +85,7 @@ class _Header extends StatelessWidget {
     return const Text(
       'Jobs',
       style: TextStyle(
-        color: AppColors.brandForest,
+        color: AppColors.brandTeal,
         fontSize: 23,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.4,
@@ -110,14 +114,14 @@ class _ActiveJobCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: booking.skill.color,
+                  color: AppColors.brandTeal,
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   booking.skill.icon,
                   size: 22,
-                  color: AppColors.brandForest,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 12),
@@ -130,7 +134,7 @@ class _ActiveJobCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: AppColors.brandForest,
+                        color: AppColors.brandTeal,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
@@ -190,7 +194,7 @@ class _ActiveJobCard extends StatelessWidget {
                 Text(
                   'Elapsed ${_formatElapsed(session.elapsed)}',
                   style: const TextStyle(
-                    color: AppColors.brandForest,
+                    color: AppColors.brandTeal,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -339,14 +343,14 @@ class _HistoryRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: booking.skill.color,
+              color: AppColors.brandTeal,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Icon(
               booking.skill.icon,
               size: 20,
-              color: AppColors.brandForest,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 12),
@@ -359,7 +363,7 @@ class _HistoryRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.brandForest,
+                    color: AppColors.brandTeal,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -382,7 +386,7 @@ class _HistoryRow extends StatelessWidget {
               child: Text(
                 '₹${_formatAmount(booking.payout)}',
                 style: const TextStyle(
-                  color: AppColors.brandForest,
+                  color: AppColors.brandTeal,
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                 ),

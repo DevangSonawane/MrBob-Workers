@@ -5,6 +5,8 @@ class AppColors {
 
   static const brandGold = Color(0xFFFCB723);
   static const brandForest = Color(0xFF0D230D);
+  // Current ZingIT teal, shared by the refreshed home, wallet and account UI.
+  static const brandTeal = Color(0xFF035864);
   static const background = Colors.white;
   static const surfaceTint = Color(0xFFFFF7E4);
   // Premium refinement: softer warm-beige, less saturated than old #ECE5D6.

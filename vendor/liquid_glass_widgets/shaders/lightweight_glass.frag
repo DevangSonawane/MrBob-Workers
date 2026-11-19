@@ -336,6 +336,32 @@ void main() {
   float rimBrightness = rimBaseWithIntensity + thicknessOffset * 0.10 + (densityFactor * 0.05);
   vec3 rimColorBase = vec3(1.0) * (rimBrightness + totalSpecular * kRimSpecularMix);
 
+  // Give the refractive RGB split a restrained, visible counterpart on
+  // neutral backdrops. The reflection follows the analytic SDF normal and
+  // key light, so it remains attached to the rounded contour rather than
+  // becoming a painted rainbow border. chromaticAberration stays the single
+  // opt-in knob and zero preserves existing callers exactly.
+  //
+  // Keep this separately from rimColorBase: light-mode standard glass reduces
+  // the white rim alpha to 8%, which is correct for an achromatic hairline but
+  // would otherwise reduce a spectral reflection below a visible pixel delta.
+  float prismStrength = clamp(uChromaticAberration, 0.0, 1.0);
+  vec3 prismaticRimTint = vec3(1.0);
+  float prismaticRimWeight = 0.0;
+  if (prismStrength > 0.001) {
+    float litEdge = max(dot(surfaceNormal, uLightDirection), 0.0);
+    float hue = smoothstep(-0.85, 0.85, surfaceNormal.x);
+    vec3 coolSpectrum = mix(vec3(0.05, 0.78, 1.0),
+                             vec3(0.84, 0.24, 1.0), hue);
+    vec3 spectralReflection = mix(coolSpectrum, vec3(1.0, 0.58, 0.28),
+                                  litEdge * litEdge * litEdge);
+    // Multiplying an already-white, premultiplied rim by this restrained tint
+    // retains its hue; additive RGB would saturate to white and disappear.
+    prismaticRimTint = mix(vec3(1.0), spectralReflection, 0.92);
+    prismaticRimWeight = borderMask * prismStrength *
+        (0.45 + litEdge * 0.25);
+  }
+
   // Directional light influence for a subtle lit-side bonus.
   float normalDotLight = max(0.0, dot(surfaceNormal, uLightDirection));
   float normalDotOpposite = max(0.0, dot(surfaceNormal, -uLightDirection));
@@ -410,6 +436,7 @@ void main() {
       float outA2 = rimAlphaBase + pmA2 * (1.0 - rimAlphaBase);
       vec3 outRgb2 = rimColorBase * rimAlphaBase + pmRgb2 * (1.0 - rimAlphaBase);
       pmRgb2 = outRgb2 + vec3(0.05) * uIndicatorWeight + vec3(fresnel);
+      pmRgb2 *= mix(vec3(1.0), prismaticRimTint, prismaticRimWeight);
       // Meniscus rim darkening (PATH A fallback — no valid texture)
       pmRgb2 *= meniscusAbsorption(distFromEdge, edgeZone, surfaceNormal, uLightDirection, uEdgeAbsorption);
       fragColor = vec4(clamp(pmRgb2, 0.0, 1.0) * mask, outA2 * mask);
@@ -475,6 +502,7 @@ void main() {
       finalColor += vec3(uGlowIntensity * 0.3 * glowMask);
 
       finalColor = clamp(finalColor + vec3(fresnel), 0.0, 1.0);
+      finalColor *= mix(vec3(1.0), prismaticRimTint, prismaticRimWeight);
 
       // [1] Hemisphere lens profile + [2] light-modulated absorption (PATH A normal)
       finalColor *= meniscusAbsorption(distFromEdge, edgeZone, surfaceNormal, uLightDirection, uEdgeAbsorption);
@@ -525,6 +553,7 @@ void main() {
 
     pmRgb += vec3(0.05) * uIndicatorWeight;
     pmRgb += vec3(fresnel);
+    pmRgb *= mix(vec3(1.0), prismaticRimTint, prismaticRimWeight);
 
     // Interactive glow: active state on switches/sliders (restored from main).
     float glowMask = step(0.01, uGlowIntensity);

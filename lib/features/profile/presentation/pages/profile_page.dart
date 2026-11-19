@@ -23,7 +23,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
+      backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -39,7 +39,7 @@ class ProfilePage extends StatelessWidget {
                   Text(
                     'Profile',
                     style: TextStyle(
-                      color: AppColors.brandForest,
+                      color: AppColors.brandTeal,
                       fontSize: 23,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.4,
@@ -87,15 +87,13 @@ class _HelpDisputesSection extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(22, 18, 16, 18),
         decoration: BoxDecoration(
           border: Border.all(color: AppColors.borderSubtle),
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: _softShadow,
         ),
         child: const Row(
           children: [
-            Icon(
-              LucideIcons.messageCircleQuestion,
-              color: AppColors.brandForest,
-            ),
-            SizedBox(width: 12),
+            _TealIconDisc(icon: LucideIcons.messageCircleQuestion),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +101,7 @@ class _HelpDisputesSection extends StatelessWidget {
                   Text(
                     'Help & disputes',
                     style: TextStyle(
-                      color: AppColors.brandForest,
+                      color: AppColors.brandTeal,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -152,94 +150,106 @@ class _IdentityCard extends StatelessWidget {
       kycIcon = LucideIcons.clock;
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
-        child: Row(
+    // Client "Account" header: centered teal avatar with a verified badge,
+    // teal name, then phone and the KYC status pill.
+    return Column(
+      children: [
+        Stack(
+          clipBehavior: Clip.none,
           children: [
             Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.brandForest.withValues(alpha: 0.08),
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                color: AppColors.brandTeal,
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
               child: Text(
                 initial,
                 style: const TextStyle(
-                  color: AppColors.brandForest,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
                   height: 1,
                 ),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: AppColors.brandForest,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      height: 1.15,
-                    ),
+            if (profile.kycStatus == KycStatus.verified)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x40000000),
+                        blurRadius: 2,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    phone,
-                    style: const TextStyle(
-                      color: AppColors.mutedText,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.verified_rounded,
+                    size: 15,
+                    color: AppColors.brandTeal,
                   ),
-                  const SizedBox(height: 12),
-                ],
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: kycColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(kycIcon, size: 14, color: kycColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    kycLabel,
-                    style: TextStyle(
-                      color: kycColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
-      ),
+        const SizedBox(height: 16),
+        Text(
+          name,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.brandTeal,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            height: 28 / 20,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          phone,
+          style: const TextStyle(
+            color: AppColors.mutedText,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: kycColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(kycIcon, size: 14, color: kycColor),
+              const SizedBox(width: 6),
+              Text(
+                kycLabel,
+                style: TextStyle(
+                  color: kycColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -262,15 +272,9 @@ class _SkillsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: _softShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
@@ -283,7 +287,7 @@ class _SkillsCard extends StatelessWidget {
                   child: Text(
                     'Work you do',
                     style: TextStyle(
-                      color: AppColors.brandForest,
+                      color: AppColors.brandTeal,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       height: 1.2,
@@ -299,13 +303,13 @@ class _SkillsCard extends StatelessWidget {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.brandForest.withValues(alpha: 0.07),
+                      color: AppColors.brandTeal.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text(
                       'Change',
                       style: TextStyle(
-                        color: AppColors.brandForest,
+                        color: AppColors.brandTeal,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -380,15 +384,9 @@ class _DocumentsCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: _softShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
@@ -398,7 +396,7 @@ class _DocumentsCard extends StatelessWidget {
             Text(
               'ID you uploaded',
               style: TextStyle(
-                color: AppColors.brandForest,
+                color: AppColors.brandTeal,
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
                 height: 1.2,
@@ -421,7 +419,7 @@ class _DocumentsCard extends StatelessWidget {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8F8F8),
+                  color: AppColors.surfaceTint,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -512,15 +510,16 @@ class _PayoutAccountSectionState extends State<_PayoutAccountSection> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderSubtle),
+        boxShadow: _softShadow,
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 20, 22, 20),
         child: Row(
           children: [
-            const Icon(LucideIcons.landmark, color: AppColors.brandForest),
-            const SizedBox(width: 12),
+            const _TealIconDisc(icon: LucideIcons.landmark),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +527,7 @@ class _PayoutAccountSectionState extends State<_PayoutAccountSection> {
                   const Text(
                     'Payout account',
                     style: TextStyle(
-                      color: AppColors.brandForest,
+                      color: AppColors.brandTeal,
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
@@ -601,6 +600,36 @@ class _SignOut extends StatelessWidget {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
+    );
+  }
+}
+
+/// Client-app card shadow: soft, diffused, barely lifts the card.
+final List<BoxShadow> _softShadow = [
+  BoxShadow(
+    color: Colors.black.withValues(alpha: 0.035),
+    blurRadius: 10,
+    offset: const Offset(0, 4),
+  ),
+];
+
+/// Teal icon disc used on the client Account page rows.
+class _TealIconDisc extends StatelessWidget {
+  const _TealIconDisc({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: const BoxDecoration(
+        color: AppColors.brandTeal,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Icon(icon, size: 19, color: Colors.white),
     );
   }
 }

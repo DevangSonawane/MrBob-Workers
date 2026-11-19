@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/models/gig_booking.dart';
@@ -84,9 +85,8 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
     if (!mounted || ok) return;
     final message = AppState.instance.errorMessage.value;
     if (message != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -142,9 +142,8 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
       );
     } on JobUnavailableException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     } catch (_) {
       if (mounted) {
@@ -229,229 +228,329 @@ class _BookingFeedPageState extends State<BookingFeedPage> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    // Client-home look: solid teal header behind the status bar holding the
+    // greeting + online switch, white rounded body underneath.
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          color: AppColors.brandForest,
-          onRefresh: _refresh,
+      backgroundColor: AppColors.brandTeal,
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light.copyWith(
+          statusBarColor: Colors.transparent,
+        ),
+        child: SafeArea(
+          bottom: false,
           child: ValueListenableBuilder<VendorPresence>(
             valueListenable: AppState.instance.presence,
             builder: (context, presence, child) {
-              return ValueListenableBuilder<JobSession?>(
-                valueListenable: AppState.instance.activeJob,
-                builder: (context, activeJob, _) {
-                  return ValueListenableBuilder<List<GigBooking>>(
-                    valueListenable: AppState.instance.bookings,
-                    builder: (context, _, child) {
-                      final pending = _pending;
-                      final focus = pending.isEmpty
-                          ? null
-                          : pending[_focusIndex.clamp(0, pending.length - 1)];
-                      final rest = focus == null
-                          ? const <GigBooking>[]
-                          : pending.where((b) => b.id != focus.id).toList();
-                      return ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          10,
-                          16,
-                          100 + bottomInset,
-                        ),
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _greeting,
-                                      style: const TextStyle(
-                                        color: AppColors.mutedText,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500,
-                                      ),
+              return Column(
+                children: [
+                  _FeedHeader(
+                    greeting: _greeting,
+                    online: presence.online,
+                    onToggle: _toggleOnline,
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(22),
+                      ),
+                      child: ColoredBox(
+                        color: Colors.white,
+                        child: RefreshIndicator(
+                          color: AppColors.brandForest,
+                          onRefresh: _refresh,
+                          child: ValueListenableBuilder<JobSession?>(
+                            valueListenable: AppState.instance.activeJob,
+                            builder: (context, activeJob, _) {
+                              return ValueListenableBuilder<List<GigBooking>>(
+                                valueListenable: AppState.instance.bookings,
+                                builder: (context, _, child) {
+                                  final pending = _pending;
+                                  final focus = pending.isEmpty
+                                      ? null
+                                      : pending[_focusIndex.clamp(
+                                          0,
+                                          pending.length - 1,
+                                        )];
+                                  final rest = focus == null
+                                      ? const <GigBooking>[]
+                                      : pending
+                                            .where((b) => b.id != focus.id)
+                                            .toList();
+                                  return ListView(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: EdgeInsets.fromLTRB(
+                                      16,
+                                      18,
+                                      16,
+                                      100 + bottomInset,
                                     ),
-                                    const SizedBox(height: 1),
-                                    ValueListenableBuilder(
-                                      valueListenable:
-                                          AppState.instance.profile,
-                                      builder: (context, profile, _) {
-                                        final name = profile.name.isEmpty
-                                            ? 'Partner'
-                                            : profile.name.split(' ').first;
-                                        return Text(
-                                          name,
-                                          style: const TextStyle(
-                                            color: AppColors.brandForest,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: -0.3,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    presence.online ? 'Online' : 'Offline',
-                                    style: TextStyle(
-                                      color: presence.online
-                                          ? AppColors.brandForest
-                                          : AppColors.mutedText,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Switch.adaptive(
-                                    value: presence.online,
-                                    activeThumbColor: const Color(0xFF1E8E3E),
-                                    onChanged: _toggleOnline,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (activeJob != null &&
-                              activeJob.phase != JobPhase.completed) ...[
-                            const SizedBox(height: 10),
-                            _ActiveJobRow(
-                              session: activeJob,
-                              onContinue: () => _continueJob(activeJob),
-                            ),
-                          ],
-                          const SizedBox(height: 14),
-                          if (!presence.online)
-                            const EmptyState(
-                              icon: LucideIcons.wifiOff,
-                              title: "You're offline",
-                              subtitle: 'Go online to receive requests.',
-                            )
-                          else if (presence.awaitingApproval)
-                            const EmptyState(
-                              icon: LucideIcons.clock,
-                              title: 'Your profile is under review',
-                              subtitle:
-                                  'You are online. Job requests will start '
-                                  'arriving once your profile is approved.',
-                            )
-                          else if (focus == null)
-                            const EmptyState(
-                              icon: LucideIcons.inbox,
-                              title: 'No new requests',
-                              subtitle: "We'll notify you when one comes in.",
-                            )
-                          else ...[
-                            Row(
-                              children: [
-                                Text(
-                                  focus.offer != null ? 'New offer' : 'Best match',
-                                  style: const TextStyle(
-                                    color: AppColors.brandForest,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                if (pending.length > 1)
-                                  Text(
-                                    '${_focusIndex.clamp(0, pending.length - 1) + 1} of ${pending.length}',
-                                    style: const TextStyle(
-                                      color: AppColors.mutedText,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 2),
-                            const Text(
-                              'One at a time. No rush.',
-                              style: TextStyle(
-                                color: AppColors.mutedText,
-                                fontSize: 12.5,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 250),
-                              transitionBuilder: (child, animation) =>
-                                  FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.06, 0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              ),
-                              child: JobRequestCard(
-                                key: ValueKey(focus.id),
-                                booking: focus,
-                                isTop: true,
-                                onAccept: () => _acceptBooking(focus),
-                                onDecline: () => _declineBooking(focus),
-                                onViewDetails: () => _openDetail(focus),
-                                onOfferExpired: () =>
-                                    AppState.instance.removeBooking(focus.id),
-                              ),
-                            ),
-                            if (rest.isNotEmpty) ...[
-                              const SizedBox(height: 14),
-                              Text(
-                                'Up next · ${rest.length}',
-                                style: const TextStyle(
-                                  color: AppColors.mutedText,
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: AppColors.borderSubtle,
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                                    for (var i = 0; i < rest.length; i++) ...[
-                                      _WaitingRow(
-                                        booking: rest[i],
-                                        onTap: () =>
-                                            _focusJob(rest[i].id, pending),
-                                      ),
-                                      if (i != rest.length - 1)
-                                        const Divider(
-                                          height: 1,
-                                          indent: 12,
-                                          endIndent: 12,
-                                          color: AppColors.borderSubtle,
+                                    children: [
+                                      if (activeJob != null &&
+                                          activeJob.phase !=
+                                              JobPhase.completed) ...[
+                                        _ActiveJobRow(
+                                          session: activeJob,
+                                          onContinue: () =>
+                                              _continueJob(activeJob),
                                         ),
+                                      ],
+                                      const SizedBox(height: 14),
+                                      if (!presence.online)
+                                        const EmptyState(
+                                          icon: LucideIcons.wifiOff,
+                                          title: "You're offline",
+                                          subtitle:
+                                              'Go online to receive requests.',
+                                        )
+                                      else if (presence.awaitingApproval)
+                                        const EmptyState(
+                                          icon: LucideIcons.clock,
+                                          title: 'Your profile is under review',
+                                          subtitle:
+                                              'You are online. Job requests will start '
+                                              'arriving once your profile is approved.',
+                                        )
+                                      else if (focus == null)
+                                        const EmptyState(
+                                          icon: LucideIcons.inbox,
+                                          title: 'No new requests',
+                                          subtitle: "We'll notify you when one comes in.",
+                                        )
+                                      else ...[
+                                        Row(
+                                          children: [
+                                            Text(
+                                              focus.offer != null
+                                                  ? 'New offer'
+                                                  : 'Best match',
+                                              style: const TextStyle(
+                                                color: AppColors.brandTeal,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            if (pending.length > 1)
+                                              Text(
+                                                '${_focusIndex.clamp(0, pending.length - 1) + 1} of ${pending.length}',
+                                                style: const TextStyle(
+                                                  color: AppColors.mutedText,
+                                                  fontSize: 12.5,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        const Text(
+                                          'One at a time. No rush.',
+                                          style: TextStyle(
+                                            color: AppColors.mutedText,
+                                            fontSize: 12.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        AnimatedSwitcher(
+                                          duration: const Duration(
+                                            milliseconds: 250,
+                                          ),
+                                          transitionBuilder:
+                                              (child, animation) =>
+                                                  FadeTransition(
+                                                    opacity: animation,
+                                                    child: SlideTransition(
+                                                      position: Tween<Offset>(
+                                                        begin: const Offset(
+                                                          0.06,
+                                                          0,
+                                                        ),
+                                                        end: Offset.zero,
+                                                      ).animate(animation),
+                                                      child: child,
+                                                    ),
+                                                  ),
+                                          child: JobRequestCard(
+                                            key: ValueKey(focus.id),
+                                            booking: focus,
+                                            isTop: true,
+                                            onAccept: () =>
+                                                _acceptBooking(focus),
+                                            onDecline: () =>
+                                                _declineBooking(focus),
+                                            onViewDetails: () =>
+                                                _openDetail(focus),
+                                            onOfferExpired: () => AppState
+                                                .instance
+                                                .removeBooking(focus.id),
+                                          ),
+                                        ),
+                                        if (rest.isNotEmpty) ...[
+                                          const SizedBox(height: 14),
+                                          Text(
+                                            'Up next · ${rest.length}',
+                                            style: const TextStyle(
+                                              color: AppColors.mutedText,
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: AppColors.borderSubtle,
+                                              ),
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                for (
+                                                  var i = 0;
+                                                  i < rest.length;
+                                                  i++
+                                                ) ...[
+                                                  _WaitingRow(
+                                                    booking: rest[i],
+                                                    onTap: () => _focusJob(
+                                                      rest[i].id,
+                                                      pending,
+                                                    ),
+                                                  ),
+                                                  if (i != rest.length - 1)
+                                                    const Divider(
+                                                      height: 1,
+                                                      indent: 12,
+                                                      endIndent: 12,
+                                                      color: AppColors
+                                                          .borderSubtle,
+                                                    ),
+                                                ],
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ],
-                        ],
-                      );
-                    },
-                  );
-                },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               );
             },
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Teal header (client home style): greeting, first name and the
+/// online/offline switch in a frosted pill.
+class _FeedHeader extends StatelessWidget {
+  const _FeedHeader({
+    required this.greeting,
+    required this.online,
+    required this.onToggle,
+  });
+
+  final String greeting;
+  final bool online;
+  final ValueChanged<bool> onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 14, 20),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                ValueListenableBuilder(
+                  valueListenable: AppState.instance.profile,
+                  builder: (context, profile, _) {
+                    final name = profile.name.isEmpty
+                        ? 'Partner'
+                        : profile.name.split(' ').first;
+                    return Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.4,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppColors.radiusPill),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: online
+                        ? AppColors.brandGold
+                        : Colors.white.withValues(alpha: 0.45),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  online ? 'Online' : 'Offline',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Switch.adaptive(
+                  value: online,
+                  activeThumbColor: Colors.white,
+                  activeTrackColor: AppColors.brandGold,
+                  inactiveThumbColor: Colors.white,
+                  inactiveTrackColor: Colors.white.withValues(alpha: 0.22),
+                  trackOutlineColor: const WidgetStatePropertyAll(
+                    Colors.transparent,
+                  ),
+                  onChanged: onToggle,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -567,7 +666,7 @@ class _ActiveJobRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.brandForest, width: 1.2),
+          border: Border.all(color: AppColors.brandTeal, width: 1.2),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

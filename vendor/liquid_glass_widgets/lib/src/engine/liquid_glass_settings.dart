@@ -241,11 +241,16 @@ class LiquidGlassSettings {
   /// The effective blur taking visibility into account.
   double get effectiveBlur => blur * visibility;
 
-  /// The chromatic aberration of the glass effect (WIP).
+  /// Edge-only chromatic dispersion and thin-film spectral reflection.
   ///
-  /// This is a little ugly still.
+  /// Higher values create a more visible cyan/blue/violet/magenta reflection
+  /// at curved, lit glass edges. The value never paints the body: it is gated
+  /// by the renderer's SDF/geometry rim and surface normal. It also continues
+  /// to control physical RGB refraction of the sampled backdrop.
   ///
-  /// Higher values create more pronounced color fringes.
+  /// Use values around `0.25`–`0.55` for a perceptible but restrained liquid
+  /// glass prism. The default stays intentionally near zero for backwards
+  /// compatible neutral glass.
   final double chromaticAberration;
 
   /// The effective chromatic aberration taking visibility into account.

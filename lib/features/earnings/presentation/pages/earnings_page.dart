@@ -155,7 +155,7 @@ class _Header extends StatelessWidget {
     return const Text(
       'Earnings',
       style: TextStyle(
-        color: AppColors.brandForest,
+        color: AppColors.brandTeal,
         fontSize: 23,
         fontWeight: FontWeight.w900,
         letterSpacing: -0.4,
@@ -216,7 +216,7 @@ class _BalanceSummary extends StatelessWidget {
               child: Text(
                 '₹',
                 style: TextStyle(
-                  color: AppColors.brandForest,
+                  color: AppColors.brandTeal,
                   fontSize: 23,
                   fontWeight: FontWeight.w500,
                   height: 1,
@@ -227,7 +227,7 @@ class _BalanceSummary extends StatelessWidget {
             Text(
               _formatAmount(total),
               style: const TextStyle(
-                color: AppColors.brandForest,
+                color: AppColors.brandTeal,
                 fontSize: 42,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -1.2,
@@ -252,12 +252,12 @@ class _WalletAmountCard extends StatelessWidget {
   final String amount;
 
   /// Amount accent — gold for the pending payout card,
-  /// null (forest) for the available balance card.
+  /// null (teal, as in the client wallet) for the available balance card.
   final Color? accent;
 
   @override
   Widget build(BuildContext context) {
-    final amountColor = accent ?? AppColors.brandForest;
+    final amountColor = accent ?? AppColors.brandTeal;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: _cardDecoration(),
@@ -281,7 +281,7 @@ class _WalletAmountCard extends StatelessWidget {
                 child: Text(
                   title,
                   style: const TextStyle(
-                    color: AppColors.brandForest,
+                    color: AppColors.brandTeal,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -367,7 +367,7 @@ class _WalletTransactionsCard extends StatelessWidget {
                         ? LucideIcons.arrowUpRight
                         : LucideIcons.arrowDownLeft,
                     size: 18,
-                    color: AppColors.brandForest,
+                    color: AppColors.brandTeal,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -379,7 +379,7 @@ class _WalletTransactionsCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: AppColors.brandForest,
+                            color: AppColors.brandTeal,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -396,7 +396,7 @@ class _WalletTransactionsCard extends StatelessWidget {
                   Text(
                     '₹${_formatAmount(transactions[i].amount.toInt())}',
                     style: const TextStyle(
-                      color: AppColors.brandForest,
+                      color: AppColors.brandTeal,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -427,14 +427,14 @@ class _PayoutRow extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: booking.skill.color,
+              color: AppColors.brandTeal,
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: Icon(
               booking.skill.icon,
               size: 20,
-              color: AppColors.brandForest,
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 12),
@@ -447,7 +447,7 @@ class _PayoutRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.brandForest,
+                    color: AppColors.brandTeal,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),
@@ -467,7 +467,7 @@ class _PayoutRow extends StatelessWidget {
           Text(
             '₹${_formatAmount(booking.payout)}',
             style: const TextStyle(
-              color: AppColors.brandForest,
+              color: AppColors.brandTeal,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),

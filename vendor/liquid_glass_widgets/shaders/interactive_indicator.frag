@@ -334,6 +334,25 @@ void main() {
 
   // Scale rim brightness with ambientRim parameter
   vec3 rimColor = vec3(1.0) * modifiedRimBrightness * (uAmbientRim * 10.0);
+
+  // A real prism has a small thin-film reflection even when the refracted
+  // scene behind it is white. Keep it locked to the SDF normal and key light;
+  // this adds cyan/blue/violet/magenta with a brief warm glint on the lit side,
+  // without introducing another pass or a screen-space rainbow overlay.
+  float prismStrength = clamp(uChromaticAberration, 0.0, 1.0);
+  vec3 prismaticRimTint = vec3(1.0);
+  float prismaticRimWeight = 0.0;
+  if (prismStrength > 0.001) {
+    float litEdge = max(edgeLightCatch, 0.0);
+    float hue = smoothstep(-0.85, 0.85, surfaceNormal.x);
+    vec3 coolSpectrum = mix(vec3(0.05, 0.78, 1.0),
+                             vec3(0.84, 0.24, 1.0), hue);
+    vec3 spectralReflection = mix(coolSpectrum, vec3(1.0, 0.58, 0.28),
+                                  litEdge * litEdge * litEdge);
+    prismaticRimTint = mix(vec3(1.0), spectralReflection, 0.92);
+    prismaticRimWeight = borderMask * prismStrength *
+        (0.45 + litEdge * 0.25);
+  }
   
   // ==========================================================================
   // COMPOSITE FINAL COLOR
@@ -356,6 +375,8 @@ void main() {
   
   // Apply glass tint color
   finalColor = mix(finalColor, finalColor + uGlassColor.rgb * 0.2, uGlassColor.a);
+  // Tint (rather than add) so the colour remains visible over a white body.
+  finalColor *= mix(vec3(1.0), prismaticRimTint, prismaticRimWeight);
 
   // ==========================================================================
   // MENISCUS RIM DARKENING (Beer-Lambert absorption) — applied LAST
