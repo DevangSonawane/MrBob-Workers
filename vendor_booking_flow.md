@@ -1,7 +1,7 @@
 Vendor Booking Flow
 Mr Bob vendor app - API guide
-Base URL https://home-services-backend-7cyx.onrender.com/api/v1
-Live reference (try any call) https://home-services-backend-7cyx.onrender.com/api-docs
+Base URL https://home-services-backend-zvm2.onrender.com/api/v1
+Live reference (try any call) https://home-services-backend-zvm2.onrender.com/api-docs
 Version 14 October 2026
 How the vendor app takes a booking and carries it through: see open jobs, accept one, start it with the customer's
 start code, enter the completion code, upload photos of the finished work, and complete it.
@@ -21,7 +21,7 @@ token from vendor onboarding's OTP step. The job endpoints also need the vendor 
 return 403.
 Requests. Send JSON with Content-Type: application/json, except the photo upload, which is
 multipart/form-data. Paths are relative to the base URL, so GET /vendor/jobs/available means GET
-https://home-services-backend-7cyx.onrender.com/api/v1/vendor/jobs/available.
+https://home-services-backend-zvm2.onrender.com/api/v1/vendor/jobs/available.
 Responses. A single item comes back as { "success": true, "data": ... }. A list comes back as {
 "success": true, "items": [...], "meta": { "page", "limit", "total", "totalPages" } }. Lists accept
 page and limit (up to 100).

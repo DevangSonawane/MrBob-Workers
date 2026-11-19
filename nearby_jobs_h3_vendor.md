@@ -6,8 +6,8 @@ Jobs now reach the vendors nearest to the customer first. This document lists
 what the vendor app does with the new endpoints, and where each piece lives in
 the code.
 
-Base URL: `https://home-services-backend-7cyx.onrender.com/api/v1`
-Live reference: `https://home-services-backend-7cyx.onrender.com/api-docs`
+Base URL: `https://home-services-backend-zvm2.onrender.com/api/v1`
+Live reference: `https://home-services-backend-zvm2.onrender.com/api-docs`
 (sections *"Vendor app - going online (nearby jobs)"* and
 *"Customer app - vendors nearby"*)
 
